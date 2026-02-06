@@ -5,6 +5,7 @@ import { initDb } from './init.js';
 import { query } from './db.js';
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,12 +15,26 @@ const PORT = process.env.PORT || 8080;
 const DIST_DIR = path.resolve(__dirname, '..', 'dist');
 
 app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false }));
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
 const API_KEY = process.env.API_KEY || '';
+const ELKS_API_USERNAME = process.env.ELKS_API_USERNAME || '';
+const ELKS_API_PASSWORD = process.env.ELKS_API_PASSWORD || '';
+const ELKS_SMS_FROM = process.env.ELKS_SMS_FROM || '';
+const ELKS_WEBHOOK_SECRET = process.env.ELKS_WEBHOOK_SECRET || '';
+
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const SMTP_FROM = process.env.SMTP_FROM || '';
+
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
 const ROLE_RANK = {
   base: 1,
@@ -80,6 +95,148 @@ const requireRole = (role) => (req, res, next) => {
   return next();
 };
 
+const normalizePhone = (phone) => {
+  if (!phone) return '';
+  const trimmed = phone.trim();
+  if (trimmed.startsWith('+')) {
+    return `+${trimmed.replace(/[^\d]/g, '')}`;
+  }
+  return trimmed.replace(/[^\d]/g, '');
+};
+
+const getLanguage = (ticket) => ticket?.disclaimer_language || 'sv';
+
+const textTemplates = {
+  costProposal: {
+    sv: (ticket, amount) =>
+      `Hej ${ticket.customer_name}! Vi har ett kostnadsförslag: ${amount} kr. Svara JA för godkännande eller NEJ för att avböja.`,
+    en: (ticket, amount) =>
+      `Hi ${ticket.customer_name}! We have a cost proposal: ${amount} SEK. Reply YES to approve or NO to decline.`,
+  },
+  repairReady: {
+    sv: (ticket) =>
+      `Hej ${ticket.customer_name}! Din enhet är klar för upphämtning. Välkommen!`,
+    en: (ticket) =>
+      `Hi ${ticket.customer_name}! Your device is ready for pickup.`,
+  },
+};
+
+const emailTemplates = {
+  costProposal: {
+    sv: (ticket, amount) => ({
+      subject: `Kostnadsförslag för ärende #${ticket.ticket_number}`,
+      body: `Hej ${ticket.customer_name},\n\nVi har tagit fram ett kostnadsförslag för ditt ärende (#${ticket.ticket_number}).\nKostnad: ${amount} kr.\n\nSvara gärna på detta mail eller via SMS med JA för godkännande, eller NEJ om du vill avböja.\n\nVänliga hälsningar\nre:Compute-IT`,
+    }),
+    en: (ticket, amount) => ({
+      subject: `Cost proposal for case #${ticket.ticket_number}`,
+      body: `Hi ${ticket.customer_name},\n\nWe have prepared a cost proposal for your case (#${ticket.ticket_number}).\nCost: ${amount} SEK.\n\nPlease reply with YES to approve, or NO to decline.\n\nBest regards\nre:Compute-IT`,
+    }),
+  },
+  repairReady: {
+    sv: (ticket) => ({
+      subject: `Din enhet är klar (#${ticket.ticket_number})`,
+      body: `Hej ${ticket.customer_name},\n\nDin enhet är klar för upphämtning. Välkommen in!\n\nVänliga hälsningar\nre:Compute-IT`,
+    }),
+    en: (ticket) => ({
+      subject: `Your device is ready (#${ticket.ticket_number})`,
+      body: `Hi ${ticket.customer_name},\n\nYour device is ready for pickup. Welcome in!\n\nBest regards\nre:Compute-IT`,
+    }),
+  },
+};
+
+const translateIfNeeded = async (text, language) => {
+  if (!DEEPSEEK_API_KEY) return text;
+  if (!language || language === 'sv') return text;
+
+  try {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Translate the text into the requested language. Keep numbers, names, and case numbers unchanged. Return only the translated text.',
+          },
+          {
+            role: 'user',
+            content: `Language: ${language}\nText: ${text}`,
+          },
+        ],
+        temperature: 0.2,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeepSeek error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const translated = data?.choices?.[0]?.message?.content?.trim();
+    return translated || text;
+  } catch (error) {
+    console.error('DeepSeek translation failed:', error);
+    return text;
+  }
+};
+
+const sendSms = async ({ to, message }) => {
+  if (!ELKS_API_USERNAME || !ELKS_API_PASSWORD) {
+    throw new Error('SMS credentials missing');
+  }
+
+  const params = new URLSearchParams({
+    from: ELKS_SMS_FROM,
+    to,
+    message,
+  });
+
+  const response = await fetch('https://api.46elks.com/a1/SMS', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${ELKS_API_USERNAME}:${ELKS_API_PASSWORD}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`SMS send error: ${errorText}`);
+  }
+
+  return response.json();
+};
+
+const mailer = SMTP_HOST
+  ? nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+    })
+  : null;
+
+const sendEmail = async ({ to, subject, body }) => {
+  if (!mailer) {
+    throw new Error('SMTP is not configured');
+  }
+
+  const result = await mailer.sendMail({
+    from: SMTP_FROM || SMTP_USER,
+    to,
+    subject,
+    text: body,
+  });
+
+  return result;
+};
+
 app.get('/api/tickets', requireAuth, async (_req, res) => {
   try {
     const { rows } = await query(
@@ -111,12 +268,14 @@ app.post('/api/tickets', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Saknar obligatoriska fält.' });
     }
 
+    const normalizedPhone = normalizePhone(customer_phone);
     const { rows } = await query(
       `
         INSERT INTO service_tickets (
           customer_name,
           customer_email,
           customer_phone,
+          customer_phone_normalized,
           device_type,
           device_model,
           issue_description,
@@ -125,13 +284,14 @@ app.post('/api/tickets', requireAuth, async (req, res) => {
           status,
           user_id
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
         RETURNING *
       `,
       [
         customer_name,
         customer_email || null,
         customer_phone,
+        normalizedPhone || null,
         device_type,
         device_model || null,
         issue_description,
@@ -303,9 +463,50 @@ app.get('/api/admin/users', requireAuth, requireRole('admin'), async (_req, res)
   }
 });
 
-app.get('/api/admin/stats', requireAuth, requireRole('admin'), async (_req, res) => {
+app.patch('/api/admin/users/:id', requireAuth, requireRole('admin'), async (req, res) => {
   try {
-    const { rows } = await query(`
+    const { id } = req.params;
+    const { role, name } = req.body || {};
+
+    if (role && !ROLE_RANK[role]) {
+      return res.status(400).json({ error: 'Ogiltig roll.' });
+    }
+
+    const { rows } = await query(
+      'UPDATE users SET role = COALESCE($1, role), name = COALESCE($2, name) WHERE id = $3 RETURNING id, email, role, name',
+      [role || null, name || null, id]
+    );
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Användare hittades inte.' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('PATCH /api/admin/users error:', error);
+    res.status(500).json({ error: 'Kunde inte uppdatera användare.' });
+  }
+});
+
+app.get('/api/admin/stats', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const where = [];
+    const values = [];
+
+    if (from) {
+      values.push(from);
+      where.push(`created_at >= $${values.length}`);
+    }
+    if (to) {
+      values.push(to);
+      where.push(`created_at <= $${values.length}`);
+    }
+
+    const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const { rows } = await query(
+      `
       SELECT
         COUNT(*)::int AS total_tickets,
         COUNT(*) FILTER (WHERE status = 'Avslutad')::int AS closed_tickets,
@@ -313,12 +514,183 @@ app.get('/api/admin/stats', requireAuth, requireRole('admin'), async (_req, res)
         AVG(EXTRACT(EPOCH FROM (customer_notified_at - completed_at))) AS avg_notify_seconds,
         AVG(EXTRACT(EPOCH FROM (picked_up_at - customer_notified_at))) AS avg_pickup_seconds
       FROM service_tickets
-    `);
+      ${whereClause}
+    `,
+      values
+    );
 
     res.json(rows[0]);
   } catch (error) {
     console.error('GET /api/admin/stats error:', error);
     res.status(500).json({ error: 'Kunde inte hämta statistik.' });
+  }
+});
+
+app.post('/api/notify/cost-proposal', requireAuth, requireRole('service'), async (req, res) => {
+  try {
+    const { ticketId, channel } = req.body || {};
+    const { rows } = await query('SELECT * FROM service_tickets WHERE id = $1', [ticketId]);
+    const ticket = rows[0];
+    if (!ticket) return res.status(404).json({ error: 'Ärende hittades inte.' });
+
+    const language = getLanguage(ticket);
+    const amount = ticket.final_cost || '—';
+    const messageBase =
+      textTemplates.costProposal[language]?.(ticket, amount) ||
+      textTemplates.costProposal.sv(ticket, amount);
+    const message = await translateIfNeeded(messageBase, language);
+
+    if (channel === 'sms') {
+      if (!ticket.customer_phone) {
+        return res.status(400).json({ error: 'Telefonnummer saknas.' });
+      }
+      const smsResponse = await sendSms({
+        to: ticket.customer_phone,
+        message,
+      });
+      await query(
+        `INSERT INTO message_logs (ticket_id, channel, direction, to_number, body, provider, provider_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [ticket.id, 'sms', 'outbound', ticket.customer_phone, message, '46elks', smsResponse?.id || null]
+      );
+    } else {
+      if (!ticket.customer_email) {
+        return res.status(400).json({ error: 'E-post saknas.' });
+      }
+      const template =
+        emailTemplates.costProposal[language]?.(ticket, amount) ||
+        emailTemplates.costProposal.sv(ticket, amount);
+      const translatedBody = await translateIfNeeded(template.body, language);
+      const translatedSubject = await translateIfNeeded(template.subject, language);
+      await sendEmail({ to: ticket.customer_email, subject: translatedSubject, body: translatedBody });
+      await query(
+        `INSERT INTO message_logs (ticket_id, channel, direction, to_number, subject, body, provider)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [ticket.id, 'email', 'outbound', ticket.customer_email, translatedSubject, translatedBody, 'smtp']
+      );
+    }
+
+    await query(
+      `UPDATE service_tickets SET status = $1, customer_notified_at = NOW() WHERE id = $2`,
+      ['Väntar på kund', ticket.id]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('POST /api/notify/cost-proposal error:', error);
+    res.status(500).json({ error: 'Kunde inte skicka.' });
+  }
+});
+
+app.post('/api/notify/repair-ready', requireAuth, requireRole('service'), async (req, res) => {
+  try {
+    const { ticketId, channel } = req.body || {};
+    const { rows } = await query('SELECT * FROM service_tickets WHERE id = $1', [ticketId]);
+    const ticket = rows[0];
+    if (!ticket) return res.status(404).json({ error: 'Ärende hittades inte.' });
+
+    const language = getLanguage(ticket);
+    const messageBase =
+      textTemplates.repairReady[language]?.(ticket) || textTemplates.repairReady.sv(ticket);
+    const message = await translateIfNeeded(messageBase, language);
+
+    if (channel === 'sms') {
+      if (!ticket.customer_phone) {
+        return res.status(400).json({ error: 'Telefonnummer saknas.' });
+      }
+      const smsResponse = await sendSms({
+        to: ticket.customer_phone,
+        message,
+      });
+      await query(
+        `INSERT INTO message_logs (ticket_id, channel, direction, to_number, body, provider, provider_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [ticket.id, 'sms', 'outbound', ticket.customer_phone, message, '46elks', smsResponse?.id || null]
+      );
+    } else {
+      if (!ticket.customer_email) {
+        return res.status(400).json({ error: 'E-post saknas.' });
+      }
+      const template =
+        emailTemplates.repairReady[language]?.(ticket) || emailTemplates.repairReady.sv(ticket);
+      const translatedBody = await translateIfNeeded(template.body, language);
+      const translatedSubject = await translateIfNeeded(template.subject, language);
+      await sendEmail({ to: ticket.customer_email, subject: translatedSubject, body: translatedBody });
+      await query(
+        `INSERT INTO message_logs (ticket_id, channel, direction, to_number, subject, body, provider)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [ticket.id, 'email', 'outbound', ticket.customer_email, translatedSubject, translatedBody, 'smtp']
+      );
+    }
+
+    await query(
+      `UPDATE service_tickets SET status = $1, completed_at = COALESCE(completed_at, NOW()), customer_notified_at = NOW() WHERE id = $2`,
+      ['Färdig', ticket.id]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('POST /api/notify/repair-ready error:', error);
+    res.status(500).json({ error: 'Kunde inte skicka.' });
+  }
+});
+
+app.post('/api/webhooks/46elks', async (req, res) => {
+  try {
+    if (ELKS_WEBHOOK_SECRET && req.query.secret !== ELKS_WEBHOOK_SECRET) {
+      return res.status(401).json({ error: 'Invalid webhook secret' });
+    }
+
+    const from = req.body.from || req.body.sender;
+    const message = (req.body.message || req.body.text || '').trim();
+
+    if (!from || !message) {
+      return res.status(400).json({ error: 'Invalid payload' });
+    }
+
+    const normalized = normalizePhone(from);
+    const { rows } = await query(
+      `SELECT * FROM service_tickets WHERE customer_phone_normalized = $1 ORDER BY created_at DESC LIMIT 1`,
+      [normalized]
+    );
+
+    const ticket = rows[0];
+    if (!ticket) {
+      await query(
+        `INSERT INTO message_logs (channel, direction, from_number, body, provider)
+         VALUES ($1,$2,$3,$4,$5)`,
+        ['sms', 'inbound', from, message, '46elks']
+      );
+      return res.json({ ok: true });
+    }
+
+    await query(
+      `INSERT INTO message_logs (ticket_id, channel, direction, from_number, body, provider)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [ticket.id, 'sms', 'inbound', from, message, '46elks']
+    );
+
+    const normalizedMessage = message.toLowerCase();
+    if (['ja', 'yes', 'j', 'y'].includes(normalizedMessage)) {
+      await query(
+        `UPDATE service_tickets
+         SET cost_proposal_approved = true, status = $1
+         WHERE id = $2`,
+        ['Kostnadsförslag godkänt', ticket.id]
+      );
+    } else if (['nej', 'no', 'n'].includes(normalizedMessage)) {
+      await query(
+        `UPDATE service_tickets
+         SET cost_proposal_approved = false, status = $1
+         WHERE id = $2`,
+        ['Väntar på kund', ticket.id]
+      );
+    }
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('46elks webhook error:', error);
+    return res.status(500).json({ error: 'Webhook error' });
   }
 });
 

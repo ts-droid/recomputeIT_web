@@ -28,6 +28,7 @@
     "clsx": "^2.0.0",
     "bcryptjs": "^2.4.3",
     "express": "^4.19.2",
+    "nodemailer": "^6.9.16",
     "pg": "^8.13.1",
     "framer-motion": "^10.16.4",
     "lucide-react": "^0.292.0",

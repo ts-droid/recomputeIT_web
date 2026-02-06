@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { generateEmailContent } from '@/lib/emailTemplates';
-import { Copy, Check, Send, Globe, Sparkles } from 'lucide-react';
+import { Copy, Check, Send, Globe, Sparkles, Mail, MessageSquare } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 const translationPlaceholders = {
   sv: 'Beskriv diagnos här...',
@@ -34,15 +35,18 @@ const languages = [
 ];
 
 export const EmailTemplateDialog = ({ open, onOpenChange, ticket, onUpdate, templateType }) => {
+  const { token } = useSupabaseAuth();
   const [costProposal, setCostProposal] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [translatedDiagnosis, setTranslatedDiagnosis] = useState('');
   const [copied, setCopied] = useState(false);
   const [currentLang, setCurrentLang] = useState('sv');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
 
   const debounceTimeoutRef = useRef(null);
+  const isCostProposal = templateType === 'kostnadsforslag';
   const placeholderText = translationPlaceholders[currentLang] || translationPlaceholders.sv;
 
   useEffect(() => {
@@ -84,20 +88,77 @@ export const EmailTemplateDialog = ({ open, onOpenChange, ticket, onUpdate, temp
     setCopied(true);
     toast({
       title: "Kopierat!",
-      description: "Texten för kostnadsförslaget har kopierats till urklipp.",
+      description: isCostProposal
+        ? "Texten för kostnadsförslaget har kopierats till urklipp."
+        : "Texten har kopierats till urklipp.",
     });
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleCopyAndApprove = () => {
     handleCopy();
-    onUpdate(ticket.id, {
-      status: 'Väntar på kund',
-      final_cost: costProposal,
-      diagnosis: diagnosis, // Save original diagnosis to DB
-      disclaimer_language: currentLang,
-    });
+    if (isCostProposal) {
+      onUpdate(ticket.id, {
+        status: 'Väntar på kund',
+        final_cost: costProposal,
+        diagnosis: diagnosis, // Save original diagnosis to DB
+        disclaimer_language: currentLang,
+      });
+    }
     onOpenChange(false);
+  };
+
+  const sendNotification = async (channel) => {
+    if (!ticket || !templateType) return;
+    if (templateType === 'kostnadsforslag' && !costProposal) {
+      toast({
+        title: "Kostnad saknas",
+        description: "Ange kostnadsförslag innan du skickar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      if (templateType === 'kostnadsforslag') {
+        await onUpdate(ticket.id, { final_cost: costProposal, diagnosis });
+      }
+
+      const endpoint =
+        templateType === 'kostnadsforslag' ? '/api/notify/cost-proposal' : '/api/notify/repair-ready';
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ticketId: ticket.id,
+          channel,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Send failed');
+      }
+
+      toast({
+        title: "Skickat!",
+        description: channel === 'sms' ? "SMS skickat till kunden." : "E-post skickad till kunden.",
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Send notification error:', error);
+      toast({
+        title: "Kunde inte skicka",
+        description: "Kontrollera inställningar och försök igen.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
   
   const handleFieldUpdate = (field, value) => {
@@ -130,9 +191,13 @@ export const EmailTemplateDialog = ({ open, onOpenChange, ticket, onUpdate, temp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Underlag för kostnadsförslag</DialogTitle>
+          <DialogTitle>
+            {isCostProposal ? 'Underlag för kostnadsförslag' : 'Meddelande till kund'}
+          </DialogTitle>
           <DialogDescription>
-            Granska, kopiera och skicka detta kostnadsförslag till kunden.
+            {isCostProposal
+              ? 'Granska, kopiera och skicka detta kostnadsförslag till kunden.'
+              : 'Granska, kopiera och skicka meddelande om färdig reparation.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -155,36 +220,44 @@ export const EmailTemplateDialog = ({ open, onOpenChange, ticket, onUpdate, temp
           </Select>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
-          <div className="space-y-2">
-            <Label htmlFor="diagnosis" className="flex items-center gap-2">
-              Diagnos 
-              {isTranslating && <Sparkles size={16} className="text-purple-500 animate-pulse" />}
-            </Label>
-             <Textarea
-              id="diagnosis"
-              value={diagnosis}
-              onChange={(e) => setDiagnosis(e.target.value)}
-              onBlur={() => handleFieldUpdate('diagnosis', diagnosis)}
-              placeholder={placeholderText}
-              className="bg-gray-50 min-h-[120px]"
-            />
-            <p className="text-xs text-gray-500">
-              <Sparkles size={12} className="inline-block mr-1" /> Automatisk översättning är inte aktiverad.
+        {isCostProposal ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
+            <div className="space-y-2">
+              <Label htmlFor="diagnosis" className="flex items-center gap-2">
+                Diagnos 
+                {isTranslating && <Sparkles size={16} className="text-purple-500 animate-pulse" />}
+              </Label>
+               <Textarea
+                id="diagnosis"
+                value={diagnosis}
+                onChange={(e) => setDiagnosis(e.target.value)}
+                onBlur={() => handleFieldUpdate('diagnosis', diagnosis)}
+                placeholder={placeholderText}
+                className="bg-gray-50 min-h-[120px]"
+              />
+              <p className="text-xs text-gray-500">
+                <Sparkles size={12} className="inline-block mr-1" /> Översättning anpassas vid utskick.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cost-proposal">Kostnadsförslag (kr)</Label>
+              <Input
+                id="cost-proposal"
+                value={costProposal}
+                onChange={(e) => setCostProposal(e.target.value)}
+                onBlur={() => handleFieldUpdate('final_cost', costProposal)}
+                placeholder="Ange total kostnad inkl. moms"
+                className="bg-gray-50"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="my-4">
+            <p className="text-sm text-gray-600">
+              Meddelandet skickas på kundens valda språk när du väljer e-post eller SMS.
             </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="cost-proposal">Kostnadsförslag (kr)</Label>
-            <Input
-              id="cost-proposal"
-              value={costProposal}
-              onChange={(e) => setCostProposal(e.target.value)}
-              onBlur={() => handleFieldUpdate('final_cost', costProposal)}
-              placeholder="Ange total kostnad inkl. moms"
-              className="bg-gray-50"
-            />
-          </div>
-        </div>
+        )}
 
         <div className="bg-gray-100 p-4 rounded-md space-y-4 max-h-80 overflow-y-auto border border-gray-200">
           <div>
@@ -205,6 +278,14 @@ export const EmailTemplateDialog = ({ open, onOpenChange, ticket, onUpdate, temp
           <Button onClick={handleCopyAndApprove} className="bg-green-600 hover:bg-green-700">
             <Send className="mr-2 h-4 w-4" />
             Godkänn & Kopiera
+          </Button>
+          <Button onClick={() => sendNotification('email')} className="bg-slate-800 hover:bg-slate-900" disabled={isSending}>
+            <Mail className="mr-2 h-4 w-4" />
+            Skicka e-post
+          </Button>
+          <Button onClick={() => sendNotification('sms')} variant="outline" disabled={isSending}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Skicka SMS
           </Button>
         </DialogFooter>
       </DialogContent>

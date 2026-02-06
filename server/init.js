@@ -16,6 +16,21 @@ export async function initDb() {
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS customer_notified_at TIMESTAMPTZ`);
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS picked_up_at TIMESTAMPTZ`);
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS customer_phone_normalized TEXT`);
+  await query(`CREATE INDEX IF NOT EXISTS service_tickets_phone_norm_idx ON service_tickets (customer_phone_normalized)`);
+  await query(`CREATE TABLE IF NOT EXISTS message_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ticket_id UUID REFERENCES service_tickets(id) ON DELETE SET NULL,
+    channel TEXT NOT NULL,
+    direction TEXT NOT NULL,
+    to_number TEXT,
+    from_number TEXT,
+    subject TEXT,
+    body TEXT,
+    provider TEXT,
+    provider_id TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
 
   const adminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL;
   const adminPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD;

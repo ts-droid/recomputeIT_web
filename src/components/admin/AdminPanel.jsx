@@ -24,6 +24,7 @@ export function AdminPanel() {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -44,7 +45,10 @@ export function AdminPanel() {
   const loadStats = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/stats`, { headers });
+      const params = new URLSearchParams();
+      if (dateRange.from) params.append('from', dateRange.from);
+      if (dateRange.to) params.append('to', dateRange.to);
+      const response = await fetch(`${API_BASE_URL}/api/admin/stats?${params.toString()}`, { headers });
       if (!response.ok) throw new Error('Stats error');
       const data = await response.json();
       setStats(data);
@@ -110,6 +114,27 @@ export function AdminPanel() {
     }
   };
 
+  const updateUser = async (id, updates) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) throw new Error('Update user error');
+      const updated = await response.json();
+      setUsers((prev) => prev.map((user) => (user.id === id ? updated : user)));
+    } catch (error) {
+      console.error('Update user error:', error);
+      toast({
+        title: 'Kunde inte uppdatera användare',
+        description: 'Försök igen.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   useEffect(() => {
     if (!canView) return;
     loadStats();
@@ -130,7 +155,7 @@ export function AdminPanel() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
           <p className="text-sm text-gray-500">Totalt antal ärenden</p>
           <p className="text-2xl font-semibold text-gray-900">{stats?.total_tickets ?? '—'}</p>
@@ -146,10 +171,42 @@ export function AdminPanel() {
           </p>
         </div>
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Snittid klar → kundinfo</p>
+          <p className="text-2xl font-semibold text-gray-900">
+            {formatDuration(stats?.avg_notify_seconds)}
+          </p>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
           <p className="text-sm text-gray-500">Snittid klar → hämtad</p>
           <p className="text-2xl font-semibold text-gray-900">
             {formatDuration(stats?.avg_pickup_seconds)}
           </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="flex-1">
+          <Label htmlFor="stats-from">Från</Label>
+          <Input
+            id="stats-from"
+            type="date"
+            value={dateRange.from}
+            onChange={(event) => setDateRange((prev) => ({ ...prev, from: event.target.value }))}
+          />
+        </div>
+        <div className="flex-1">
+          <Label htmlFor="stats-to">Till</Label>
+          <Input
+            id="stats-to"
+            type="date"
+            value={dateRange.to}
+            onChange={(event) => setDateRange((prev) => ({ ...prev, to: event.target.value }))}
+          />
+        </div>
+        <div className="flex items-end">
+          <Button variant="outline" onClick={loadStats} disabled={loading}>
+            Kör filter
+          </Button>
         </div>
       </div>
 
@@ -225,9 +282,19 @@ export function AdminPanel() {
                     <p className="text-sm font-semibold text-gray-900">{user.name || user.email}</p>
                     <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
-                  <span className="text-xs uppercase tracking-wide bg-white border border-gray-200 rounded-full px-2 py-1 text-gray-600">
-                    {user.role}
-                  </span>
+                  <Select
+                    value={user.role}
+                    onValueChange={(value) => updateUser(user.id, { role: value })}
+                  >
+                    <SelectTrigger className="w-[140px] bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="base">Bas</SelectItem>
+                      <SelectItem value="service">Service</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               ))
             )}

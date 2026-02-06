@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS service_tickets (
   customer_name TEXT NOT NULL,
   customer_email TEXT,
   customer_phone TEXT NOT NULL,
+  customer_phone_normalized TEXT,
   device_type TEXT NOT NULL,
   device_model TEXT,
   issue_description TEXT NOT NULL,
@@ -38,3 +39,18 @@ CREATE TABLE IF NOT EXISTS service_tickets (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS service_tickets_ticket_number_idx ON service_tickets (ticket_number);
+CREATE INDEX IF NOT EXISTS service_tickets_phone_norm_idx ON service_tickets (customer_phone_normalized);
+
+CREATE TABLE IF NOT EXISTS message_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID REFERENCES service_tickets(id) ON DELETE SET NULL,
+  channel TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  to_number TEXT,
+  from_number TEXT,
+  subject TEXT,
+  body TEXT,
+  provider TEXT,
+  provider_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
