@@ -1,0 +1,213 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
+import { generateEmailContent } from '@/lib/emailTemplates';
+import { Copy, Check, Send, Globe, Sparkles } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+
+const translationPlaceholders = {
+  sv: 'Beskriv diagnos här...',
+  en: 'Describe diagnosis here...',
+  ar: 'صف التشخيص هنا...',
+  es: 'Describa el diagnóstico aquí...',
+  fi: 'Kuvaa diagnoosi täällä...',
+  ku: 'Teşhîsê li vir rave bike...',
+  tr: 'Teşhisi buraya yazın...',
+  pl: 'Opisz diagnozę tutaj...',
+  uk: 'Опишіть діагноз тут...',
+};
+
+const languages = [
+  { code: 'sv', name: 'Svenska' },
+  { code: 'en', name: 'English' },
+  { code: 'ar', name: 'العربية' },
+  { code: 'es', name: 'Español', },
+  { code: 'fi', name: 'Suomi' },
+  { code: 'ku', name: 'Kurdî' },
+  { code: 'tr', name: 'Türkçe' },
+  { code: 'pl', name: 'Polski' },
+  { code: 'uk', name: 'Українська' },
+];
+
+export const EmailTemplateDialog = ({ open, onOpenChange, ticket, onUpdate, templateType }) => {
+  const [costProposal, setCostProposal] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
+  const [translatedDiagnosis, setTranslatedDiagnosis] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [currentLang, setCurrentLang] = useState('sv');
+  const [isTranslating, setIsTranslating] = useState(false);
+  const { toast } = useToast();
+
+  const debounceTimeoutRef = useRef(null);
+  const placeholderText = translationPlaceholders[currentLang] || translationPlaceholders.sv;
+
+  useEffect(() => {
+    if (ticket) {
+      setCostProposal(ticket.final_cost || '');
+      setDiagnosis(ticket.diagnosis || '');
+      setCurrentLang(ticket.disclaimer_language || 'sv');
+    } else {
+      setCostProposal('');
+      setDiagnosis('');
+      setCurrentLang('sv');
+    }
+  }, [ticket]);
+
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    setIsTranslating(false);
+    setTranslatedDiagnosis(diagnosis);
+  }, [diagnosis, currentLang]);
+
+  const emailContent = useMemo(() => {
+    if (!ticket || !templateType) {
+      return { subject: '', body: '' };
+    }
+    
+    const tempTicket = {
+      ...ticket,
+      diagnosis: translatedDiagnosis || diagnosis, // Use translated or original
+      final_cost: costProposal,
+    };
+
+    return generateEmailContent(tempTicket, templateType, currentLang);
+  }, [ticket, templateType, currentLang, diagnosis, translatedDiagnosis, costProposal]);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(emailContent.body);
+    setCopied(true);
+    toast({
+      title: "Kopierat!",
+      description: "Texten för kostnadsförslaget har kopierats till urklipp.",
+    });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyAndApprove = () => {
+    handleCopy();
+    onUpdate(ticket.id, {
+      status: 'Väntar på kund',
+      final_cost: costProposal,
+      diagnosis: diagnosis, // Save original diagnosis to DB
+      disclaimer_language: currentLang,
+    });
+    onOpenChange(false);
+  };
+  
+  const handleFieldUpdate = (field, value) => {
+    if (ticket && ticket[field] !== value) {
+      onUpdate(ticket.id, { [field]: value });
+      let title = '';
+      if(field === 'diagnosis') title = 'Diagnos sparad';
+      if(field === 'final_cost') title = 'Kostnad sparad';
+      
+      if(title){
+        toast({ title: title, description: `Ärende #${ticket.ticket_number} har uppdaterats.` });
+      }
+    }
+  };
+
+  const handleLanguageChange = (newLang) => {
+    setCurrentLang(newLang);
+    if (ticket) {
+      onUpdate(ticket.id, { disclaimer_language: newLang });
+      toast({
+        title: "Språk uppdaterat",
+        description: `Ärendets språk har ändrats.`
+      });
+    }
+  };
+
+  if (!ticket) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Underlag för kostnadsförslag</DialogTitle>
+          <DialogDescription>
+            Granska, kopiera och skicka detta kostnadsförslag till kunden.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2 my-4">
+          <Label htmlFor="language" className="text-gray-700 flex items-center gap-2"><Globe className="h-4 w-4 text-gray-500" />Språk för mall</Label>
+          <Select
+            id="language"
+            name="language"
+            value={currentLang}
+            onValueChange={handleLanguageChange}
+          >
+            <SelectTrigger className="bg-gray-50 border-gray-300 text-gray-900">
+              <SelectValue placeholder="Välj språk..." />
+            </SelectTrigger>
+            <SelectContent>
+              {languages.map(lang => (
+                <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4">
+          <div className="space-y-2">
+            <Label htmlFor="diagnosis" className="flex items-center gap-2">
+              Diagnos 
+              {isTranslating && <Sparkles size={16} className="text-purple-500 animate-pulse" />}
+            </Label>
+             <Textarea
+              id="diagnosis"
+              value={diagnosis}
+              onChange={(e) => setDiagnosis(e.target.value)}
+              onBlur={() => handleFieldUpdate('diagnosis', diagnosis)}
+              placeholder={placeholderText}
+              className="bg-gray-50 min-h-[120px]"
+            />
+            <p className="text-xs text-gray-500">
+              <Sparkles size={12} className="inline-block mr-1" /> Automatisk översättning är inte aktiverad.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cost-proposal">Kostnadsförslag (kr)</Label>
+            <Input
+              id="cost-proposal"
+              value={costProposal}
+              onChange={(e) => setCostProposal(e.target.value)}
+              onBlur={() => handleFieldUpdate('final_cost', costProposal)}
+              placeholder="Ange total kostnad inkl. moms"
+              className="bg-gray-50"
+            />
+          </div>
+        </div>
+
+        <div className="bg-gray-100 p-4 rounded-md space-y-4 max-h-80 overflow-y-auto border border-gray-200">
+          <div>
+            <Label className="font-semibold text-gray-800">E-post Ämne</Label>
+            <p className="text-sm bg-white p-2 rounded-md mt-1">{emailContent?.subject || ''}</p>
+          </div>
+          <div>
+            <Label className="font-semibold text-gray-800">E-post Innehåll</Label>
+            <div className="text-sm bg-white p-3 rounded-md mt-1 whitespace-pre-wrap">{emailContent?.body || ''}</div>
+          </div>
+        </div>
+
+        <DialogFooter className="mt-6 gap-2 sm:gap-0">
+          <Button variant="outline" onClick={handleCopy}>
+            {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+            Kopiera text
+          </Button>
+          <Button onClick={handleCopyAndApprove} className="bg-green-600 hover:bg-green-700">
+            <Send className="mr-2 h-4 w-4" />
+            Godkänn & Kopiera
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

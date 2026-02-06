@@ -1,0 +1,78 @@
+import React, { useState } from 'react';
+import { useServiceTickets } from '@/hooks/useServiceTickets';
+import { Loader2, Hash, User, Smartphone, FileText } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { TicketRow } from '@/components/service/TicketRow';
+
+export function ServiceRegister() {
+  const { tickets, loading, updateTicket } = useServiceTickets();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showHidden, setShowHidden] = useState(false);
+
+  const filteredTickets = tickets.filter(ticket => {
+    const matchesSearch = searchTerm === '' ||
+      ticket.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ticket.ticket_number.toString().includes(searchTerm) ||
+      (ticket.device_model && ticket.device_model.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    if (!matchesSearch) return false;
+
+    if (searchTerm) return true;
+
+    return showHidden ? ticket.is_hidden : !ticket.is_hidden;
+  });
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-slate-50 p-4 sm:p-6 lg:p-8 rounded-b-2xl">
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <Input 
+          type="text"
+          placeholder="Sök på namn, ärendenummer eller modell..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-md bg-white border-gray-300"
+        />
+        <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+          <Checkbox
+            id="show-hidden"
+            checked={showHidden}
+            onCheckedChange={setShowHidden}
+          />
+          <Label htmlFor="show-hidden" className="text-sm font-medium text-gray-700 cursor-pointer">
+            Visa dolda ärenden
+          </Label>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex items-center p-4 bg-gray-50 rounded-t-lg font-semibold text-gray-600 text-sm">
+          <div className="w-1/12"></div>
+          <div className="w-2/12 flex items-center gap-2"><Hash size={14} />ÄRENDENR</div>
+          <div className="w-3/12 flex items-center gap-2"><User size={14} />KUND</div>
+          <div className="w-3/12 flex items-center gap-2"><Smartphone size={14} />ENHET</div>
+          <div className="w-3/12 text-right flex items-center gap-2 justify-end"><FileText size={14} />STATUS</div>
+        </div>
+        <div className="p-2">
+          {filteredTickets.length > 0 ? (
+            filteredTickets.map(ticket => (
+              <TicketRow key={ticket.id} ticket={ticket} onUpdate={updateTicket} />
+            ))
+          ) : (
+            <div className="text-center p-12 text-gray-500">
+              <p>Inga ärenden hittades.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

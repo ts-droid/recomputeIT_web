@@ -1,0 +1,323 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, ChevronDown, ChevronRight, User, Smartphone, Mail, Phone, Calendar, Languages, Edit2, ShieldCheck, PenLine as FilePenLine, Wrench, DollarSign, Printer, Sparkles, EyeOff, Eye } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { TicketActions } from '@/components/service/TicketActions';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+import { printFinalReceipt, printDocuments } from '@/lib/print';
+import { Button } from '@/components/ui/button';
+
+const statusStyles = {
+  "Nytt": "bg-blue-100 text-blue-800",
+  "Pågående": "bg-yellow-100 text-yellow-800",
+  "Väntar på kund": "bg-orange-100 text-orange-800",
+  "Kostnadsförslag godkänt": "bg-teal-100 text-teal-800",
+  "Färdig": "bg-green-100 text-green-800",
+  "Avslutad": "bg-gray-100 text-gray-800",
+};
+
+const languageMap = {
+  sv: 'Svenska',
+  en: 'English',
+  ar: 'العربية',
+  es: 'Español',
+  fi: 'Suomi',
+  ku: 'Kurdî',
+  tr: 'Türkçe',
+  pl: 'Polski',
+  uk: 'Українська'
+};
+
+export const TicketRow = ({ ticket, onUpdate }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [internalNotes, setInternalNotes] = useState('');
+  const [workDoneSummary, setWorkDoneSummary] = useState('');
+  const [finalCost, setFinalCost] = useState('');
+  const [currentDiagnosis, setCurrentDiagnosis] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const { toast } = useToast();
+  useEffect(() => {
+    setWorkDoneSummary(ticket.work_done_summary || '');
+    setFinalCost(ticket.final_cost || '');
+    setInternalNotes(ticket.internal_notes || '');
+    setCurrentDiagnosis(ticket.diagnosis || null);
+  }, [ticket]);
+
+  const handleFieldUpdate = (field, value) => {
+    if (ticket[field] !== value) {
+      onUpdate(ticket.id, { [field]: value });
+      let title = '';
+      if(field === 'internal_notes') title = 'Anteckningar sparade';
+      if(field === 'work_done_summary') title = 'Åtgärder sparade';
+      if(field === 'final_cost') title = 'Kostnad sparad';
+      
+      if (title) {
+        toast({ title: title, description: `Ärende #${ticket.ticket_number} har uppdaterats.` });
+      }
+    }
+  };
+
+  const handleApprovalChange = async (checked) => {
+    setIsApproving(true);
+    const newStatus = checked ? 'Kostnadsförslag godkänt' : 'Väntar på kund';
+
+    if (checked && currentDiagnosis) {
+        toast({ title: "Godkänner...", description: "Kopierar information och uppdaterar ärendet." });
+
+        const updates = {
+            cost_proposal_approved: true,
+            status: newStatus,
+            work_done_summary: currentDiagnosis,
+            final_cost: ticket.final_cost,
+            diagnosis: null,
+        };
+        
+        const updatedTicket = await onUpdate(ticket.id, updates);
+        
+        if (updatedTicket) {
+            setWorkDoneSummary(updatedTicket.work_done_summary || '');
+            setFinalCost(updatedTicket.final_cost || '');
+            setCurrentDiagnosis(null);
+            toast({ title: "Kostnadsförslag godkänt!", description: `Information har kopierats till 'Utförda åtgärder' och 'Slutlig kostnad'.` });
+        }
+
+    } else {
+        await onUpdate(ticket.id, { cost_proposal_approved: checked, status: newStatus });
+        if (checked) {
+             toast({ title: "Kostnadsförslag godkänt!", description: "Status har uppdaterats. Ingen diagnos att kopiera." });
+        } else {
+            toast({ 
+                title: "Status uppdaterad", 
+                description: `Status för ärende #${ticket.ticket_number} har ändrats till "${newStatus}".` 
+            });
+        }
+    }
+    setIsApproving(false);
+  };
+
+
+  const handleFinalizeTicket = async () => {
+    if (!workDoneSummary || !finalCost) {
+      toast({
+        title: "Information saknas",
+        description: "Fyll in 'Utförda åtgärder' och 'Slutlig kostnad' innan du kan avsluta ärendet.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const language = ticket.disclaimer_language || 'sv';
+    const ticketWithFinalCost = { ...ticket, final_cost: finalCost, work_done_summary: workDoneSummary };
+    
+    if (language === 'sv') {
+        printFinalReceipt(ticketWithFinalCost, workDoneSummary, language);
+        onUpdate(ticket.id, { status: 'Avslutad' });
+        toast({
+            title: "Ärende avslutat!",
+            description: `Kvitto för ärende #${ticket.ticket_number} har skapats.`,
+        });
+        return;
+    }
+    
+    setIsProcessing(true);
+    toast({ title: "Skapar kvitto...", description: "Förbereder slutgiltigt kvitto." });
+
+    try {
+      printFinalReceipt({ ...ticketWithFinalCost, work_done_summary: workDoneSummary }, workDoneSummary, language);
+      
+      onUpdate(ticket.id, { status: 'Avslutad', work_done_summary: workDoneSummary });
+
+      toast({
+        title: "Ärende avslutat!",
+        description: `Kvitto för ärende #${ticket.ticket_number} har skapats.`,
+      });
+
+    } catch (error) {
+      console.error("Error finalizing ticket:", error);
+      toast({
+        title: "Ett fel uppstod",
+        description: "Kunde inte skapa kvitto. Försök igen.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReprint = () => {
+    printDocuments(ticket, ticket.disclaimer_language);
+    toast({
+      title: "Utskrift skapad",
+      description: `Inlämningskvitto för ärende #${ticket.ticket_number} har skapats.`,
+    });
+  };
+
+  const handleToggleHidden = () => {
+    const newHiddenState = !ticket.is_hidden;
+    onUpdate(ticket.id, { is_hidden: newHiddenState });
+    toast({
+      title: newHiddenState ? "Ärende dolt" : "Ärende synligt",
+      description: `Ärende #${ticket.ticket_number} är nu ${newHiddenState ? 'dolt' : 'synligt'} i listan.`,
+    });
+  };
+  
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className={`bg-white rounded-lg shadow-md border border-gray-200 mb-3 ${ticket.is_hidden ? 'opacity-60 bg-gray-50' : ''}`}
+    >
+      <div 
+        className="flex items-center p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="w-1/12 text-gray-500">
+          {isOpen ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+        </div>
+        <div className="w-2/12 font-semibold text-gray-800">#{ticket.ticket_number}</div>
+        <div className="w-3/12 text-gray-700">{ticket.customer_name}</div>
+        <div className="w-3/12 text-gray-600">{ticket.device_type}</div>
+        <div className="w-3/12 text-right">
+          <Badge className={`${statusStyles[ticket.status] || statusStyles['Nytt']} font-medium`}>{ticket.status}</Badge>
+        </div>
+      </div>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-gray-50/70 p-6 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-8">
+              
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-800 flex items-center gap-2"><User size={16} />Kundinformation</h3>
+                <p className="text-sm text-gray-600 flex items-center gap-2"><Mail size={14} /> {ticket.customer_email || 'Ej angiven'}</p>
+                <p className="text-sm text-gray-600 flex items-center gap-2"><Phone size={14} /> {ticket.customer_phone}</p>
+                <p className="text-sm text-gray-600 flex items-center gap-2"><Languages size={14} /> Godkännande: {languageMap[ticket.disclaimer_language] || ticket.disclaimer_language}</p>
+                <p className="text-sm text-gray-600 flex items-center gap-2"><Calendar size={14} /> Skapad: {new Date(ticket.created_at).toLocaleString('sv-SE')}</p>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Smartphone size={16} />Enhetsinformation</h3>
+                <p className="text-sm text-gray-700 font-medium">{ticket.device_model || 'Modell ej angiven'}</p>
+                <p className="text-sm text-gray-600"><strong className="font-medium">Felbeskrivning:</strong> {ticket.issue_description}</p>
+                {ticket.additional_notes && <p className="text-sm text-gray-600"><strong className="font-medium">Anteckningar från kund:</strong> {ticket.additional_notes}</p>}
+                 {currentDiagnosis && <p className="text-sm text-gray-600 mt-2 p-2 bg-yellow-50 border-l-4 border-yellow-300"><strong className="font-medium">Senaste diagnos:</strong> {currentDiagnosis}</p>}
+              </div>
+
+              <div className="space-y-4">
+                 <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Edit2 size={16} />Hantering</h3>
+                <TicketActions ticket={ticket} onUpdate={onUpdate} />
+
+                <div className="pt-4 space-y-4">
+                   <div className={`p-3 rounded-lg transition-colors ${ticket.cost_proposal_approved ? 'bg-green-100 border-green-300' : 'bg-gray-100 border-gray-200'} border`}>
+                    <div className="flex items-center space-x-3">
+                      <Checkbox 
+                        id={`cost-approved-${ticket.id}`} 
+                        checked={!!ticket.cost_proposal_approved}
+                        onCheckedChange={handleApprovalChange}
+                        disabled={isApproving}
+                        className="h-5 w-5"
+                      />
+                      <Label htmlFor={`cost-approved-${ticket.id}`} className={`text-base font-semibold flex items-center gap-2 cursor-pointer ${ticket.cost_proposal_approved ? 'text-green-800' : 'text-gray-700'}`}>
+                        {isApproving ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                        Kostnadsförslag godkänt
+                      </Label>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                     <div>
+                        <Label htmlFor={`work-done-${ticket.id}`} className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-2">
+                           <Wrench size={16} />
+                           Utförda åtgärder
+                        </Label>
+                        <Textarea
+                          id={`work-done-${ticket.id}`}
+                          value={workDoneSummary}
+                          onChange={(e) => setWorkDoneSummary(e.target.value)}
+                          onBlur={() => handleFieldUpdate('work_done_summary', workDoneSummary)}
+                          placeholder="Beskriv vad som har gjorts..."
+                          className="bg-white min-h-[100px]"
+                        />
+                      </div>
+                       <div>
+                        <Label htmlFor={`final-cost-${ticket.id}`} className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-2">
+                           <DollarSign size={16} />
+                           Slutlig kostnad (kr)
+                        </Label>
+                        <Input
+                          id={`final-cost-${ticket.id}`}
+                          value={finalCost}
+                          onChange={(e) => setFinalCost(e.target.value)}
+                          onBlur={() => handleFieldUpdate('final_cost', finalCost)}
+                          placeholder="t.ex. 1299"
+                          className="bg-white"
+                        />
+                      </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`internal-notes-${ticket.id}`} className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-2">
+                       <FilePenLine size={16} />
+                       Interna anteckningar
+                    </Label>
+                    <Textarea
+                      id={`internal-notes-${ticket.id}`}
+                      value={internalNotes}
+                      onChange={(e) => setInternalNotes(e.target.value)}
+                      onBlur={() => handleFieldUpdate('internal_notes', internalNotes)}
+                      placeholder="Anteckningar endast för personal..."
+                      className="bg-white min-h-[100px]"
+                    />
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-4 mt-4 space-y-3">
+                    <Button 
+                      onClick={handleFinalizeTicket} 
+                      disabled={isProcessing || ticket.status === 'Avslutad'}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {isProcessing ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Printer size={16} className="mr-2" />}
+                      {ticket.status === 'Avslutad' ? 'Ärende Avslutat' : 'Lämna ut & Skriv ut kvitto'}
+                    </Button>
+                    <p className="text-xs text-center text-gray-500 mt-2 flex items-center justify-center gap-1">
+                      <Sparkles size={12} className="text-purple-500" /> Skapar ett tydligt kvitto för kunden.
+                    </p>
+                    <div className="flex gap-3">
+                      <Button 
+                        onClick={handleReprint} 
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Printer size={16} className="mr-2" /> Skriv ut igen
+                      </Button>
+                      <Button 
+                        onClick={handleToggleHidden} 
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {ticket.is_hidden ? <Eye size={16} className="mr-2" /> : <EyeOff size={16} className="mr-2" />}
+                        {ticket.is_hidden ? 'Visa' : 'Dölj'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
