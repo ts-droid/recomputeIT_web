@@ -7,9 +7,6 @@ import PublicRegistrationPage from '@/pages/PublicRegistrationPage';
 import DashboardPage from '@/pages/DashboardPage';
 import LoginPage from '@/pages/LoginPage';
 import { Loader2 } from 'lucide-react';
-import pkg from '../package.json';
-
-const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
 
 function ProtectedRoute({ children }) {
   const { session, loading } = useSupabaseAuth();
@@ -55,9 +52,6 @@ function AppContent() {
             } 
           />
         </Routes>
-        <div className="fixed bottom-3 right-4 text-[11px] text-gray-500 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full px-2.5 py-1 shadow-sm">
-          v{APP_VERSION}
-        </div>
         <Toaster />
       </div>
     </>

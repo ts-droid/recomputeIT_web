@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
+import pkg from '../../package.json';
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
 
 export default function LoginPage() {
   const { signInWithEmail, session } = useSupabaseAuth();
@@ -42,8 +45,13 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100">
-       <Link to="/" className="text-3xl font-bold text-gray-800 flex items-center mb-8">
-          <span className="text-green-600">re:</span><span>Compute-IT</span>
+       <Link to="/" className="text-3xl font-bold text-gray-800 flex items-center gap-3 mb-8">
+          <span>
+            <span className="text-green-600">re:</span><span>Compute-IT</span>
+          </span>
+          <span className="text-[11px] text-gray-500 bg-white/80 border border-gray-200 rounded-full px-2 py-0.5">
+            v{APP_VERSION}
+          </span>
         </Link>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}

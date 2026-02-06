@@ -12,6 +12,9 @@ import { Loader2, ArrowRight, Languages, User, Smartphone, AlertCircle, Info, Fi
 import { DisclaimerDialog } from '@/components/DisclaimerDialog';
 import { printDocuments } from '@/lib/print';
 import { formTranslations } from '@/lib/formTranslations';
+import pkg from '../../package.json';
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
 
 const PublicHeader = () => (
   <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-40">
@@ -20,9 +23,14 @@ const PublicHeader = () => (
         <Link to="/" className="flex-shrink-0">
           <img className="h-10 w-auto" src="https://horizons-cdn.hostinger.com/66ce8f1a-1805-4a09-9f17-041a9f68d79f/f39487d84caba3a65608a9652e97d727.jpg" alt="re:Compute-IT Logo" />
         </Link>
-        <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 flex items-center gap-2">
-          Personal <ArrowRight size={14} />
-        </Link>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-gray-500 bg-white/80 border border-gray-200 rounded-full px-2 py-0.5">
+            v{APP_VERSION}
+          </span>
+          <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 flex items-center gap-2">
+            Personal <ArrowRight size={14} />
+          </Link>
+        </div>
       </div>
     </div>
   </header>

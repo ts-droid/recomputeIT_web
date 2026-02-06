@@ -5,6 +5,9 @@ import { ServiceRegister } from '@/components/ServiceRegister';
 import { LogOut, PlusCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import pkg from '../../package.json';
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
 
 const Header = ({ onSignOut, user }) => (
   <header className="bg-white shadow-md sticky top-0 z-50">
@@ -17,6 +20,9 @@ const Header = ({ onSignOut, user }) => (
         </div>
         <div className="flex items-center gap-4">
            {user && <p className="text-gray-500 text-sm hidden sm:block">Inloggad som {user.email}</p>}
+          <span className="text-[11px] text-gray-500 bg-white/80 border border-gray-200 rounded-full px-2 py-0.5 hidden sm:inline-flex">
+            v{APP_VERSION}
+          </span>
           <Button onClick={onSignOut} variant="outline" className="text-gray-600 hover:bg-gray-100 border-gray-300 gap-2">
             <LogOut size={16} /> Logga ut
           </Button>
