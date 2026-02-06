@@ -291,6 +291,18 @@ app.post('/api/admin/users', requireAuth, requireRole('admin'), async (req, res)
   }
 });
 
+app.get('/api/admin/users', requireAuth, requireRole('admin'), async (_req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT id, email, role, name, created_at, last_login_at FROM users ORDER BY created_at DESC'
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('GET /api/admin/users error:', error);
+    res.status(500).json({ error: 'Kunde inte hämta användare.' });
+  }
+});
+
 app.get('/api/admin/stats', requireAuth, requireRole('admin'), async (_req, res) => {
   try {
     const { rows } = await query(`

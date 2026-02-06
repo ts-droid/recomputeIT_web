@@ -1,0 +1,239 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+const formatDuration = (seconds) => {
+  if (!seconds || Number.isNaN(seconds)) return '—';
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.round(hours / 24);
+  return `${days} d`;
+};
+
+export function AdminPanel() {
+  const { token, role } = useSupabaseAuth();
+  const { toast } = useToast();
+  const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    role: 'base',
+    name: '',
+  });
+
+  const canView = role === 'admin';
+
+  const headers = useMemo(
+    () => ({
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    }),
+    [token]
+  );
+
+  const loadStats = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/stats`, { headers });
+      if (!response.ok) throw new Error('Stats error');
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Stats fetch error:', error);
+      toast({
+        title: 'Kunde inte hämta statistik',
+        description: 'Kontrollera behörighet och försök igen.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, { headers });
+      if (!response.ok) throw new Error('Users error');
+      const data = await response.json();
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Users fetch error:', error);
+    }
+  };
+
+  const createUser = async (event) => {
+    event.preventDefault();
+    if (!form.email || !form.password || !form.role) {
+      toast({
+        title: 'Fyll i alla fält',
+        description: 'E-post, lösenord och roll krävs.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(form),
+      });
+
+      if (!response.ok) {
+        throw new Error('Create user error');
+      }
+
+      const newUser = await response.json();
+      setUsers((prev) => [newUser, ...prev]);
+      setForm({ email: '', password: '', role: 'base', name: '' });
+      toast({
+        title: 'Användare skapad',
+        description: `${newUser.email} (${newUser.role})`,
+      });
+    } catch (error) {
+      console.error('Create user error:', error);
+      toast({
+        title: 'Kunde inte skapa användare',
+        description: 'Kontrollera uppgifterna och försök igen.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!canView) return;
+    loadStats();
+    loadUsers();
+  }, [canView]);
+
+  if (!canView) return null;
+
+  return (
+    <section className="mt-12 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">Adminpanel</h2>
+          <p className="text-sm text-gray-600">Statistik och användarhantering.</p>
+        </div>
+        <Button variant="outline" onClick={loadStats} disabled={loading}>
+          Uppdatera statistik
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Totalt antal ärenden</p>
+          <p className="text-2xl font-semibold text-gray-900">{stats?.total_tickets ?? '—'}</p>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Avslutade ärenden</p>
+          <p className="text-2xl font-semibold text-gray-900">{stats?.closed_tickets ?? '—'}</p>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Snittid reparation</p>
+          <p className="text-2xl font-semibold text-gray-900">
+            {formatDuration(stats?.avg_repair_seconds)}
+          </p>
+        </div>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Snittid klar → hämtad</p>
+          <p className="text-2xl font-semibold text-gray-900">
+            {formatDuration(stats?.avg_pickup_seconds)}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Skapa användare</h3>
+          <form onSubmit={createUser} className="space-y-4">
+            <div>
+              <Label htmlFor="admin-name">Namn</Label>
+              <Input
+                id="admin-name"
+                value={form.name}
+                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="Valfritt"
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-email">E-post</Label>
+              <Input
+                id="admin-email"
+                type="email"
+                value={form.email}
+                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                placeholder="namn@foretag.se"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-password">Lösenord</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                value={form.password}
+                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                placeholder="Minst 8 tecken"
+                required
+              />
+            </div>
+            <div>
+              <Label>Roll</Label>
+              <Select
+                value={form.role}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Välj roll" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="base">Bas</SelectItem>
+                  <SelectItem value="service">Service</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="submit" className="bg-slate-800 hover:bg-slate-900 text-white">
+              Skapa användare
+            </Button>
+          </form>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Användare</h3>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3 max-h-[420px] overflow-y-auto">
+            {users.length === 0 ? (
+              <p className="text-sm text-gray-500">Inga användare ännu.</p>
+            ) : (
+              users.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-200 pb-3 last:border-b-0 last:pb-0"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{user.name || user.email}</p>
+                    <p className="text-xs text-gray-500">{user.email}</p>
+                  </div>
+                  <span className="text-xs uppercase tracking-wide bg-white border border-gray-200 rounded-full px-2 py-1 text-gray-600">
+                    {user.role}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { ServiceRegister } from '@/components/ServiceRegister';
+import { AdminPanel } from '@/components/admin/AdminPanel';
 import { LogOut, PlusCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -33,7 +34,7 @@ const Header = ({ onSignOut, user }) => (
 );
 
 export default function DashboardPage() {
-  const { signOut, user } = useSupabaseAuth();
+  const { signOut, user, role } = useSupabaseAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -59,6 +60,7 @@ export default function DashboardPage() {
         </motion.div>
 
         <ServiceRegister />
+        {role === 'admin' ? <AdminPanel /> : null}
       </main>
     </div>
   );
