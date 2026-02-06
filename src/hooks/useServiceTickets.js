@@ -2,23 +2,23 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 
-const STARTING_TICKET_NUMBER = 25001;
-const STORAGE_KEY = 'recomputeit_tickets';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-const readTicketsFromStorage = () => {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    console.error('Error parsing ticket storage:', e);
-    return [];
+const apiFetch = async (path, options) => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options?.headers || {}),
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Request failed');
   }
-};
 
-const writeTicketsToStorage = (tickets) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tickets));
+  return response.json();
 };
 
 export const useServiceTickets = () => {
@@ -27,27 +27,16 @@ export const useServiceTickets = () => {
   const { session, user, loading: authLoading } = useSupabaseAuth();
   const { toast } = useToast();
 
-  const getNextTicketNumber = useCallback(async () => {
-    const existingTickets = readTicketsFromStorage();
-    const maxTicketNumber = existingTickets.reduce(
-      (max, ticket) => Math.max(max, Number(ticket.ticket_number) || 0),
-      0
-    );
-    return maxTicketNumber > 0 ? maxTicketNumber + 1 : STARTING_TICKET_NUMBER;
-  }, [toast]);
-
   const loadTickets = useCallback(async () => {
     setLoading(true);
     try {
-      const storedTickets = readTicketsFromStorage();
       if (!session) {
         setTickets([]);
-      } else {
-        const sortedTickets = [...storedTickets].sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setTickets(sortedTickets);
+        return;
       }
+
+      const data = await apiFetch('/api/tickets');
+      setTickets(data || []);
     } catch (error) {
       console.error("Failed to load service tickets:", error);
       toast({
@@ -68,38 +57,29 @@ export const useServiceTickets = () => {
   }, [authLoading, loadTickets]);
 
   const addTicket = useCallback(async (ticketData) => {
-    const nextTicketNumber = await getNextTicketNumber();
-
-    const newTicketPayload = {
-      ticket_number: nextTicketNumber,
-      customer_name: `${ticketData.firstName} ${ticketData.lastName}`,
-      customer_email: ticketData.email,
-      customer_phone: ticketData.phone,
-      device_type: ticketData.deviceType,
-      device_model: ticketData.deviceModel,
-      issue_description: ticketData.problemDescription,
-      additional_notes: ticketData.additionalNotes,
-      disclaimer_language: ticketData.disclaimerLanguage,
-      status: 'Nytt',
-      user_id: user ? user.id : null,
-      cost_proposal_approved: false,
-      internal_notes: '',
-      work_done_summary: '',
-      final_cost: '',
-      diagnosis: '',
-      is_hidden: false,
-      id: `ticket-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      created_at: new Date().toISOString(),
-    };
-
     try {
-      const existingTickets = readTicketsFromStorage();
-      const updatedTickets = [newTicketPayload, ...existingTickets];
-      writeTicketsToStorage(updatedTickets);
+      const newTicketPayload = {
+        customer_name: `${ticketData.firstName} ${ticketData.lastName}`,
+        customer_email: ticketData.email,
+        customer_phone: ticketData.phone,
+        device_type: ticketData.deviceType,
+        device_model: ticketData.deviceModel,
+        issue_description: ticketData.problemDescription,
+        additional_notes: ticketData.additionalNotes,
+        disclaimer_language: ticketData.disclaimerLanguage,
+        status: 'Nytt',
+        user_id: user ? user.id : null,
+      };
+
+      const data = await apiFetch('/api/tickets', {
+        method: 'POST',
+        body: JSON.stringify(newTicketPayload),
+      });
+
       if (session) {
         loadTickets();
       }
-      return newTicketPayload;
+      return data;
     } catch (error) {
       console.error("Error adding ticket:", error);
       toast({
@@ -109,17 +89,15 @@ export const useServiceTickets = () => {
       });
       return null;
     }
-  }, [user, session, getNextTicketNumber, loadTickets, toast]);
+  }, [user, session, loadTickets, toast]);
   
   const updateTicket = useCallback(async (ticketId, updates) => {
     try {
-      const existingTickets = readTicketsFromStorage();
-      const updatedTickets = existingTickets.map(ticket =>
-        ticket.id === ticketId ? { ...ticket, ...updates } : ticket
-      );
-      writeTicketsToStorage(updatedTickets);
+      const updatedTicket = await apiFetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
 
-      const updatedTicket = updatedTickets.find(ticket => ticket.id === ticketId) || null;
       setTickets(prevTickets =>
         prevTickets.map(ticket => (ticket.id === ticketId ? updatedTicket : ticket))
       );
