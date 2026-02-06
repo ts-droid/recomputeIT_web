@@ -10,10 +10,9 @@ import { Loader2 } from 'lucide-react';
 import pkg from '../../package.json';
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function LoginPage() {
-  const { signInWithEmail, signOut, session } = useSupabaseAuth();
+  const { signInWithEmail, session } = useSupabaseAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,22 +39,6 @@ export default function LoginPage() {
         description: "Kontrollera din e-post och lösenord och försök igen.",
         variant: "destructive",
       });
-    } else {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/tickets`, {
-          headers: { 'x-api-key': password },
-        });
-        if (!response.ok) {
-          throw new Error('Obehörig');
-        }
-      } catch (err) {
-        await signOut();
-        toast({
-          title: "Obehörig",
-          description: "Fel nyckel. Kontrollera och försök igen.",
-          variant: "destructive",
-        });
-      }
     }
     setLoading(false);
   };
@@ -85,19 +68,19 @@ export default function LoginPage() {
         
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-700">Användare</Label>
+            <Label htmlFor="email" className="text-gray-700">E-postadress</Label>
             <Input
               id="email"
-              type="text"
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               className="bg-gray-50 border-gray-300 text-gray-900"
-              placeholder="t.ex. personal"
+              placeholder="namn@foretag.se"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Nyckel</Label>
+            <Label htmlFor="password">Lösenord</Label>
             <Input
               id="password"
               type="password"
@@ -105,7 +88,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="bg-gray-50 border-gray-300 text-gray-900"
-              placeholder="••••••••••••"
+              placeholder="••••••••"
             />
           </div>
           <Button type="submit" className="w-full bg-slate-700 hover:bg-slate-800 text-white" disabled={loading}>

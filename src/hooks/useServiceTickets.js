@@ -24,7 +24,7 @@ const apiFetch = async (path, options) => {
 export const useServiceTickets = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { session, user, apiKey, loading: authLoading } = useSupabaseAuth();
+  const { session, user, token, loading: authLoading } = useSupabaseAuth();
   const { toast } = useToast();
 
   const loadTickets = useCallback(async () => {
@@ -36,7 +36,7 @@ export const useServiceTickets = () => {
       }
 
       const data = await apiFetch('/api/tickets', {
-        headers: { 'x-api-key': apiKey },
+        headers: { Authorization: `Bearer ${token}` },
       });
       setTickets(data || []);
     } catch (error) {
@@ -50,7 +50,7 @@ export const useServiceTickets = () => {
     } finally {
       setLoading(false);
     }
-  }, [session, toast, apiKey]);
+  }, [session, toast, token]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -75,7 +75,7 @@ export const useServiceTickets = () => {
 
       const data = await apiFetch('/api/tickets', {
         method: 'POST',
-        headers: { 'x-api-key': apiKey },
+        headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify(newTicketPayload),
       });
 
@@ -92,13 +92,13 @@ export const useServiceTickets = () => {
       });
       return null;
     }
-  }, [user, session, loadTickets, toast, apiKey]);
+  }, [user, session, loadTickets, toast, token]);
   
   const updateTicket = useCallback(async (ticketId, updates) => {
     try {
       const updatedTicket = await apiFetch(`/api/tickets/${ticketId}`, {
         method: 'PATCH',
-        headers: { 'x-api-key': apiKey },
+        headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify(updates),
       });
 
@@ -116,7 +116,7 @@ export const useServiceTickets = () => {
       });
       return null;
     }
-  }, [toast, apiKey]);
+  }, [toast, token]);
   
   return { tickets, addTicket, loading: loading || authLoading, refreshTickets: loadTickets, updateTicket };
 };

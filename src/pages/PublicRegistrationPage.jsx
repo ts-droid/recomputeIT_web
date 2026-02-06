@@ -72,7 +72,7 @@ export default function PublicRegistrationPage() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const { toast } = useToast();
   const { addTicket } = useServiceTickets();
-  const { session, apiKey } = useSupabaseAuth();
+  const { session, token } = useSupabaseAuth();
 
   const t = formTranslations[language] || formTranslations.sv;
   const currentDeviceTypes = deviceTypes[language] || deviceTypes.sv;
@@ -252,12 +252,12 @@ export default function PublicRegistrationPage() {
             </div>
 
             <div className="pt-4 text-center">
-              {!session || !apiKey ? (
+              {!session || !token ? (
                 <p className="text-sm text-red-500 mb-3">
                   Personalinloggning krävs för att registrera ärenden.
                 </p>
               ) : null}
-              <Button type="submit" disabled={loading || !session || !apiKey} className="w-full max-w-xs mx-auto text-lg py-6 bg-gray-800 hover:bg-gray-900">
+              <Button type="submit" disabled={loading || !session || !token} className="w-full max-w-xs mx-auto text-lg py-6 bg-gray-800 hover:bg-gray-900">
                 {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileText className="mr-2 h-5 w-5" />}
                 {t.submitButton.continue}
               </Button>

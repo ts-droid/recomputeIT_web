@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { printFinalReceipt, printDocuments } from '@/lib/print';
 import { Button } from '@/components/ui/button';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 const statusStyles = {
   "Nytt": "bg-blue-100 text-blue-800",
@@ -33,6 +34,8 @@ const languageMap = {
 };
 
 export const TicketRow = ({ ticket, onUpdate }) => {
+  const { role } = useSupabaseAuth();
+  const canEdit = role !== 'base';
   const [isOpen, setIsOpen] = useState(false);
   const [internalNotes, setInternalNotes] = useState('');
   const [workDoneSummary, setWorkDoneSummary] = useState('');
@@ -216,7 +219,7 @@ export const TicketRow = ({ ticket, onUpdate }) => {
 
               <div className="space-y-4">
                  <h3 className="font-semibold text-gray-800 flex items-center gap-2"><Edit2 size={16} />Hantering</h3>
-                <TicketActions ticket={ticket} onUpdate={onUpdate} />
+                <TicketActions ticket={ticket} onUpdate={onUpdate} disabled={!canEdit} />
 
                 <div className="pt-4 space-y-4">
                    <div className={`p-3 rounded-lg transition-colors ${ticket.cost_proposal_approved ? 'bg-green-100 border-green-300' : 'bg-gray-100 border-gray-200'} border`}>
@@ -225,7 +228,7 @@ export const TicketRow = ({ ticket, onUpdate }) => {
                         id={`cost-approved-${ticket.id}`} 
                         checked={!!ticket.cost_proposal_approved}
                         onCheckedChange={handleApprovalChange}
-                        disabled={isApproving}
+                        disabled={isApproving || !canEdit}
                         className="h-5 w-5"
                       />
                       <Label htmlFor={`cost-approved-${ticket.id}`} className={`text-base font-semibold flex items-center gap-2 cursor-pointer ${ticket.cost_proposal_approved ? 'text-green-800' : 'text-gray-700'}`}>
@@ -248,6 +251,7 @@ export const TicketRow = ({ ticket, onUpdate }) => {
                           onBlur={() => handleFieldUpdate('work_done_summary', workDoneSummary)}
                           placeholder="Beskriv vad som har gjorts..."
                           className="bg-white min-h-[100px]"
+                          disabled={!canEdit}
                         />
                       </div>
                        <div>
@@ -262,6 +266,7 @@ export const TicketRow = ({ ticket, onUpdate }) => {
                           onBlur={() => handleFieldUpdate('final_cost', finalCost)}
                           placeholder="t.ex. 1299"
                           className="bg-white"
+                          disabled={!canEdit}
                         />
                       </div>
                   </div>
@@ -278,13 +283,14 @@ export const TicketRow = ({ ticket, onUpdate }) => {
                       onBlur={() => handleFieldUpdate('internal_notes', internalNotes)}
                       placeholder="Anteckningar endast för personal..."
                       className="bg-white min-h-[100px]"
+                      disabled={!canEdit}
                     />
                   </div>
 
                   <div className="border-t border-gray-200 pt-4 mt-4 space-y-3">
                     <Button 
                       onClick={handleFinalizeTicket} 
-                      disabled={isProcessing || ticket.status === 'Avslutad'}
+                      disabled={isProcessing || ticket.status === 'Avslutad' || !canEdit}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       {isProcessing ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Printer size={16} className="mr-2" />}
@@ -305,6 +311,7 @@ export const TicketRow = ({ ticket, onUpdate }) => {
                         onClick={handleToggleHidden} 
                         variant="outline"
                         className="w-full"
+                        disabled={!canEdit}
                       >
                         {ticket.is_hidden ? <Eye size={16} className="mr-2" /> : <EyeOff size={16} className="mr-2" />}
                         {ticket.is_hidden ? 'Visa' : 'Dölj'}

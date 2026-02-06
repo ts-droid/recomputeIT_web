@@ -2,18 +2,19 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 
 const SupabaseAuthContext = createContext(undefined);
 const STORAGE_KEY = 'recomputeit_auth';
-const API_KEY_STORAGE = 'recomputeit_api_key';
+const TOKEN_STORAGE = 'recomputeit_token';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export const SupabaseAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [apiKey, setApiKey] = useState('');
+  const [token, setToken] = useState('');
 
   const signOut = useCallback(async () => {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(API_KEY_STORAGE);
-    setApiKey('');
+    localStorage.removeItem(TOKEN_STORAGE);
+    setToken('');
     setSession(null);
     setUser(null);
 
@@ -32,8 +33,8 @@ export const SupabaseAuthProvider = ({ children }) => {
       try {
         const saved = JSON.parse(raw);
         handleSession(saved);
-        const savedKey = localStorage.getItem(API_KEY_STORAGE) || '';
-        setApiKey(savedKey);
+        const savedToken = localStorage.getItem(TOKEN_STORAGE) || '';
+        setToken(savedToken);
       } catch (e) {
         console.error("Error reading local session:", e);
         handleSession(null);
@@ -46,21 +47,31 @@ export const SupabaseAuthProvider = ({ children }) => {
 
   const signInWithEmail = useCallback(async (email, password) => {
     if (!email || !password) {
-      return { error: { message: "Användarnamn och nyckel krävs." } };
+      return { error: { message: "E-post och lösenord krävs." } };
     }
 
-    const newSession = {
-      user: {
-        id: `local-${Date.now()}`,
-        email,
-      },
-    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
-    localStorage.setItem(API_KEY_STORAGE, password);
-    setApiKey(password);
-    handleSession(newSession);
-    return { error: null };
+      if (!response.ok) {
+        return { error: { message: "Felaktiga uppgifter." } };
+      }
+
+      const data = await response.json();
+      const newSession = { user: data.user };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
+      localStorage.setItem(TOKEN_STORAGE, data.token);
+      setToken(data.token);
+      handleSession(newSession);
+      return { error: null };
+    } catch (error) {
+      return { error: { message: "Kunde inte logga in." } };
+    }
   }, []);
 
   const value = useMemo(() => ({
@@ -69,8 +80,9 @@ export const SupabaseAuthProvider = ({ children }) => {
     loading,
     signInWithEmail,
     signOut,
-    apiKey,
-  }), [user, session, loading, signInWithEmail, signOut, apiKey]);
+    token,
+    role: user?.role || 'base',
+  }), [user, session, loading, signInWithEmail, signOut, token]);
 
   return <SupabaseAuthContext.Provider value={value}>{children}</SupabaseAuthContext.Provider>;
 };

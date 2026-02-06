@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query } from './db.js';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,4 +11,23 @@ export async function initDb() {
   const schemaPath = path.join(__dirname, 'schema.sql');
   const schemaSql = fs.readFileSync(schemaPath, 'utf8');
   await query(schemaSql);
+
+  await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS customer_notified_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS picked_up_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
+
+  const adminEmail = process.env.BOOTSTRAP_ADMIN_EMAIL;
+  const adminPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  if (adminEmail && adminPassword) {
+    const { rows } = await query('SELECT id FROM users WHERE email = $1', [adminEmail]);
+    if (rows.length === 0) {
+      const hash = await bcrypt.hash(adminPassword, 10);
+      await query(
+        'INSERT INTO users (email, password_hash, role, name) VALUES ($1, $2, $3, $4)',
+        [adminEmail, hash, 'admin', 'Admin']
+      );
+      console.log('Bootstrap admin user created.');
+    }
+  }
 }
