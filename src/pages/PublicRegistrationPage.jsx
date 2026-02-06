@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useServiceTickets } from '@/hooks/useServiceTickets';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +72,7 @@ export default function PublicRegistrationPage() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const { toast } = useToast();
   const { addTicket } = useServiceTickets();
+  const { session, apiKey } = useSupabaseAuth();
 
   const t = formTranslations[language] || formTranslations.sv;
   const currentDeviceTypes = deviceTypes[language] || deviceTypes.sv;
@@ -250,7 +252,12 @@ export default function PublicRegistrationPage() {
             </div>
 
             <div className="pt-4 text-center">
-              <Button type="submit" disabled={loading} className="w-full max-w-xs mx-auto text-lg py-6 bg-gray-800 hover:bg-gray-900">
+              {!session || !apiKey ? (
+                <p className="text-sm text-red-500 mb-3">
+                  Personalinloggning krävs för att registrera ärenden.
+                </p>
+              ) : null}
+              <Button type="submit" disabled={loading || !session || !apiKey} className="w-full max-w-xs mx-auto text-lg py-6 bg-gray-800 hover:bg-gray-900">
                 {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileText className="mr-2 h-5 w-5" />}
                 {t.submitButton.continue}
               </Button>

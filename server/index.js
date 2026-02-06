@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initDb } from './init.js';
 import { query } from './db.js';
+import crypto from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +18,32 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/tickets', async (_req, res) => {
+const API_KEY = process.env.API_KEY || '';
+
+const timingSafeEqual = (a, b) => {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+};
+
+const requireAuth = (req, res, next) => {
+  if (!API_KEY) {
+    return res.status(500).json({ error: 'API-nyckel saknas i serverkonfigurationen.' });
+  }
+
+  const headerKey = req.headers['x-api-key'];
+  const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const providedKey = headerKey || bearer || '';
+
+  if (!providedKey || !timingSafeEqual(providedKey, API_KEY)) {
+    return res.status(401).json({ error: 'Obehörig.' });
+  }
+
+  return next();
+};
+
+app.get('/api/tickets', requireAuth, async (_req, res) => {
   try {
     const { rows } = await query(
       'SELECT * FROM service_tickets ORDER BY created_at DESC'
@@ -29,7 +55,7 @@ app.get('/api/tickets', async (_req, res) => {
   }
 });
 
-app.post('/api/tickets', async (req, res) => {
+app.post('/api/tickets', requireAuth, async (req, res) => {
   try {
     const {
       customer_name,
@@ -86,7 +112,7 @@ app.post('/api/tickets', async (req, res) => {
   }
 });
 
-app.patch('/api/tickets/:id', async (req, res) => {
+app.patch('/api/tickets/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body || {};
