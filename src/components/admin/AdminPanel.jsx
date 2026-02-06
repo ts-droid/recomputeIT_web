@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -155,139 +156,113 @@ export function AdminPanel() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">Totalt antal ärenden</p>
-          <p className="text-2xl font-semibold text-gray-900">{stats?.total_tickets ?? '—'}</p>
-        </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">Avslutade ärenden</p>
-          <p className="text-2xl font-semibold text-gray-900">{stats?.closed_tickets ?? '—'}</p>
-        </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">Snittid reparation</p>
-          <p className="text-2xl font-semibold text-gray-900">
-            {formatDuration(stats?.avg_repair_seconds)}
-          </p>
-        </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">Snittid klar → kundinfo</p>
-          <p className="text-2xl font-semibold text-gray-900">
-            {formatDuration(stats?.avg_notify_seconds)}
-          </p>
-        </div>
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-          <p className="text-sm text-gray-500">Snittid klar → hämtad</p>
-          <p className="text-2xl font-semibold text-gray-900">
-            {formatDuration(stats?.avg_pickup_seconds)}
-          </p>
-        </div>
-      </div>
+      <Tabs defaultValue="reports" className="w-full">
+        <TabsList className="bg-gray-100">
+          <TabsTrigger value="reports">Rapporter</TabsTrigger>
+          <TabsTrigger value="users">Användare</TabsTrigger>
+        </TabsList>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
-        <div className="flex-1">
-          <Label htmlFor="stats-from">Från</Label>
-          <Input
-            id="stats-from"
-            type="date"
-            value={dateRange.from}
-            onChange={(event) => setDateRange((prev) => ({ ...prev, from: event.target.value }))}
-          />
-        </div>
-        <div className="flex-1">
-          <Label htmlFor="stats-to">Till</Label>
-          <Input
-            id="stats-to"
-            type="date"
-            value={dateRange.to}
-            onChange={(event) => setDateRange((prev) => ({ ...prev, to: event.target.value }))}
-          />
-        </div>
-        <div className="flex items-end">
-          <Button variant="outline" onClick={loadStats} disabled={loading}>
-            Kör filter
-          </Button>
-        </div>
-      </div>
+        <TabsContent value="reports" className="mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Totalt antal ärenden</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats?.total_tickets ?? '—'}</p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Avslutade ärenden</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats?.closed_tickets ?? '—'}</p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Snittid reparation</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatDuration(stats?.avg_repair_seconds)}
+              </p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Snittid klar → kundinfo</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatDuration(stats?.avg_notify_seconds)}
+              </p>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Snittid klar → hämtad</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatDuration(stats?.avg_pickup_seconds)}
+              </p>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Skapa användare</h3>
-          <form onSubmit={createUser} className="space-y-4">
-            <div>
-              <Label htmlFor="admin-name">Namn</Label>
+          <div className="flex flex-col md:flex-row gap-4 mb-8">
+            <div className="flex-1">
+              <Label htmlFor="stats-from">Från</Label>
               <Input
-                id="admin-name"
-                value={form.name}
-                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                placeholder="Valfritt"
+                id="stats-from"
+                type="date"
+                value={dateRange.from}
+                onChange={(event) => setDateRange((prev) => ({ ...prev, from: event.target.value }))}
               />
             </div>
-            <div>
-              <Label htmlFor="admin-email">E-post</Label>
+            <div className="flex-1">
+              <Label htmlFor="stats-to">Till</Label>
               <Input
-                id="admin-email"
-                type="email"
-                value={form.email}
-                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                placeholder="namn@foretag.se"
-                required
+                id="stats-to"
+                type="date"
+                value={dateRange.to}
+                onChange={(event) => setDateRange((prev) => ({ ...prev, to: event.target.value }))}
               />
             </div>
-            <div>
-              <Label htmlFor="admin-password">Lösenord</Label>
-              <Input
-                id="admin-password"
-                type="password"
-                value={form.password}
-                onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-                placeholder="Minst 8 tecken"
-                required
-              />
+            <div className="flex items-end">
+              <Button variant="outline" onClick={loadStats} disabled={loading}>
+                Kör filter
+              </Button>
             </div>
-            <div>
-              <Label>Roll</Label>
-              <Select
-                value={form.role}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Välj roll" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="base">Bas</SelectItem>
-                  <SelectItem value="service">Service</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" className="bg-slate-800 hover:bg-slate-900 text-white">
-              Skapa användare
-            </Button>
-          </form>
-        </div>
+          </div>
+        </TabsContent>
 
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Användare</h3>
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3 max-h-[420px] overflow-y-auto">
-            {users.length === 0 ? (
-              <p className="text-sm text-gray-500">Inga användare ännu.</p>
-            ) : (
-              users.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-200 pb-3 last:border-b-0 last:pb-0"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{user.name || user.email}</p>
-                    <p className="text-xs text-gray-500">{user.email}</p>
-                  </div>
+        <TabsContent value="users" className="mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Skapa användare</h3>
+              <form onSubmit={createUser} className="space-y-4">
+                <div>
+                  <Label htmlFor="admin-name">Namn</Label>
+                  <Input
+                    id="admin-name"
+                    value={form.name}
+                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Valfritt"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="admin-email">E-post</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                    placeholder="namn@foretag.se"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="admin-password">Lösenord</Label>
+                  <Input
+                    id="admin-password"
+                    type="password"
+                    value={form.password}
+                    onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                    placeholder="Minst 8 tecken"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Roll</Label>
                   <Select
-                    value={user.role}
-                    onValueChange={(value) => updateUser(user.id, { role: value })}
+                    value={form.role}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, role: value }))}
                   >
-                    <SelectTrigger className="w-[140px] bg-white">
-                      <SelectValue />
+                    <SelectTrigger>
+                      <SelectValue placeholder="Välj roll" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="base">Bas</SelectItem>
@@ -296,11 +271,48 @@ export function AdminPanel() {
                     </SelectContent>
                   </Select>
                 </div>
-              ))
-            )}
+                <Button type="submit" className="bg-slate-800 hover:bg-slate-900 text-white">
+                  Skapa användare
+                </Button>
+              </form>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Användare</h3>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3 max-h-[420px] overflow-y-auto">
+                {users.length === 0 ? (
+                  <p className="text-sm text-gray-500">Inga användare ännu.</p>
+                ) : (
+                  users.map((user) => (
+                    <div
+                      key={user.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-gray-200 pb-3 last:border-b-0 last:pb-0"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{user.name || user.email}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                      <Select
+                        value={user.role}
+                        onValueChange={(value) => updateUser(user.id, { role: value })}
+                      >
+                        <SelectTrigger className="w-[140px] bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="base">Bas</SelectItem>
+                          <SelectItem value="service">Service</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </section>
   );
 }
