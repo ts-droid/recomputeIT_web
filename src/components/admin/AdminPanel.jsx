@@ -26,6 +26,8 @@ export function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -133,6 +135,42 @@ export function AdminPanel() {
         description: 'Försök igen.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const sendTestEmail = async () => {
+    if (!testEmail) {
+      toast({
+        title: 'Fyll i e-post',
+        description: 'Ange en mottagare för testmail.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSendingTest(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/test-email`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ to: testEmail }),
+      });
+
+      if (!response.ok) throw new Error('Test email error');
+
+      toast({
+        title: 'Testmail skickat',
+        description: `Kontrollera inkorgen för ${testEmail}.`,
+      });
+    } catch (error) {
+      console.error('Test email error:', error);
+      toast({
+        title: 'Kunde inte skicka testmail',
+        description: 'Kontrollera SMTP-inställningarna.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -309,6 +347,25 @@ export function AdminPanel() {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+
+          <div className="mt-10 border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Testa e-post</h3>
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1">
+                <Label htmlFor="test-email">Mottagare</Label>
+                <Input
+                  id="test-email"
+                  type="email"
+                  value={testEmail}
+                  onChange={(event) => setTestEmail(event.target.value)}
+                  placeholder="namn@foretag.se"
+                />
+              </div>
+              <Button onClick={sendTestEmail} disabled={sendingTest}>
+                Skicka testmail
+              </Button>
             </div>
           </div>
         </TabsContent>

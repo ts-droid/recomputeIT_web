@@ -526,6 +526,24 @@ app.get('/api/admin/stats', requireAuth, requireRole('admin'), async (req, res) 
   }
 });
 
+app.post('/api/admin/test-email', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { to } = req.body || {};
+    if (!to) {
+      return res.status(400).json({ error: 'Mottagare saknas.' });
+    }
+
+    const subject = 'Testmail från re:Compute-IT';
+    const body = 'Detta är ett testmail från systemet. Om du ser detta fungerar SMTP.';
+
+    await sendEmail({ to, subject, body });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('POST /api/admin/test-email error:', error);
+    res.status(500).json({ error: 'Kunde inte skicka testmail.' });
+  }
+});
+
 app.post('/api/notify/cost-proposal', requireAuth, requireRole('service'), async (req, res) => {
   try {
     const { ticketId, channel } = req.body || {};
