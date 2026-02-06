@@ -1,12 +1,13 @@
 {
   "name": "web-app",
   "type": "module",
-  "version": "0.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "dev": "vite --host :: --port 3000",
     "build": "node tools/generate-llms.js || true && vite build",
-    "preview": "vite preview --host :: --port 3000"
+    "preview": "vite preview --host :: --port 3000",
+    "start": "vite preview --host 0.0.0.0 --port $PORT"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "^1.2.1",
