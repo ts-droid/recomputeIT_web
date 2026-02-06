@@ -10,12 +10,17 @@ const __dirname = path.dirname(__filename);
 export async function initDb() {
   const schemaPath = path.join(__dirname, 'schema.sql');
   const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-  await query(schemaSql);
+  const sanitizedSchemaSql = schemaSql
+    .split('\n')
+    .filter((line) => !line.includes('service_tickets_phone_norm_idx'))
+    .join('\n');
+  await query(sanitizedSchemaSql);
 
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`);
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS customer_notified_at TIMESTAMPTZ`);
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS picked_up_at TIMESTAMPTZ`);
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ`);
+  await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS customer_phone_normalized TEXT`);
   await query(`ALTER TABLE service_tickets ADD COLUMN IF NOT EXISTS customer_phone_normalized TEXT`);
   await query(
     `DO $$
