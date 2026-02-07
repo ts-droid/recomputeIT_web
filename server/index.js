@@ -6,6 +6,7 @@ import { query } from './db.js';
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,6 +33,9 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || '';
+
+const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
+const SENDGRID_FROM = process.env.SENDGRID_FROM || '';
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
@@ -223,8 +227,19 @@ const mailer = SMTP_HOST
   : null;
 
 const sendEmail = async ({ to, subject, body }) => {
+  if (SENDGRID_API_KEY && SENDGRID_FROM) {
+    sgMail.setApiKey(SENDGRID_API_KEY);
+    await sgMail.send({
+      to,
+      from: SENDGRID_FROM,
+      subject,
+      text: body,
+    });
+    return;
+  }
+
   if (!mailer) {
-    throw new Error('SMTP is not configured');
+    throw new Error('Email is not configured');
   }
 
   const result = await mailer.sendMail({
