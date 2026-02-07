@@ -6,7 +6,6 @@ import { query } from './db.js';
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
-import sgMail from '@sendgrid/mail';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,8 +33,8 @@ const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || '';
 
-const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || '';
-const SENDGRID_FROM = process.env.SENDGRID_FROM || '';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const RESEND_FROM = process.env.RESEND_FROM || '';
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
@@ -227,14 +226,26 @@ const mailer = SMTP_HOST
   : null;
 
 const sendEmail = async ({ to, subject, body }) => {
-  if (SENDGRID_API_KEY && SENDGRID_FROM) {
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    await sgMail.send({
-      to,
-      from: SENDGRID_FROM,
-      subject,
-      text: body,
+  if (RESEND_API_KEY && RESEND_FROM) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        text: body,
+      }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Resend error: ${errorText}`);
+    }
+
     return;
   }
 
