@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
-import pkg from '../../package.json';
+import { getDisplayVersion } from '@/lib/version';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
+const APP_VERSION = getDisplayVersion();
 
 export default function LoginPage() {
   const { signInWithEmail, session } = useSupabaseAuth();

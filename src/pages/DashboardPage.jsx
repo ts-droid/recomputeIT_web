@@ -6,9 +6,9 @@ import { AdminPanel } from '@/components/admin/AdminPanel';
 import { LogOut, PlusCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import pkg from '../../package.json';
+import { getDisplayVersion } from '@/lib/version';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
+const APP_VERSION = getDisplayVersion();
 
 const Header = ({ onSignOut, user }) => (
   <header className="bg-white shadow-md sticky top-0 z-50">

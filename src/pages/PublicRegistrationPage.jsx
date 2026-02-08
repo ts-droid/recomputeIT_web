@@ -13,9 +13,9 @@ import { Loader2, ArrowRight, Languages, User, Smartphone, AlertCircle, Info, Fi
 import { DisclaimerDialog } from '@/components/DisclaimerDialog';
 import { printDocuments } from '@/lib/print';
 import { formTranslations } from '@/lib/formTranslations';
-import pkg from '../../package.json';
+import { getDisplayVersion } from '@/lib/version';
 
-const APP_VERSION = import.meta.env.VITE_APP_VERSION || pkg.version || '0.0.0';
+const APP_VERSION = getDisplayVersion();
 
 const PublicHeader = () => (
   <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-40">
