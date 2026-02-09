@@ -93,28 +93,23 @@ const callSoap = async (action, body) => {
   return response.text();
 };
 
-const fetchUserId = async () => {
-  const xml = await callSoap(
-    'GetUserByAlias',
-    `<GetUserByAlias xmlns="http://api.tradera.com">
-       <alias>${alias}</alias>
-     </GetUserByAlias>`
-  );
-  const userId = extractTag(xml, 'Id') || extractTag(xml, 'UserId');
-  if (!userId) {
-    throw new Error('Could not resolve user id from Tradera response.');
-  }
-  return userId;
-};
+const fetchItems = async () => {
+  const queryXml = `<Query>
+  <Alias>${alias}</Alias>
+  <ItemStatus>Active</ItemStatus>
+  <ItemType>All</ItemType>
+  <OnlyItemsWithThumbnail>true</OnlyItemsWithThumbnail>
+  <ItemsPerPage>200</ItemsPerPage>
+  <PageNumber>1</PageNumber>
+</Query>`;
 
-const fetchItems = async (userId) => {
   const xml = await callSoap(
-    'GetSellerItems',
-    `<GetSellerItems xmlns="http://api.tradera.com">
-       <sellerId>${userId}</sellerId>
-       <categoryId>0</categoryId>
-     </GetSellerItems>`
+    'GetSearchResultAdvancedXml',
+    `<GetSearchResultAdvancedXml xmlns="http://api.tradera.com">
+       <queryXml>${queryXml}</queryXml>
+     </GetSearchResultAdvancedXml>`
   );
+
   return extractItems(xml);
 };
 
@@ -135,8 +130,7 @@ const main = async () => {
     return;
   }
 
-  const userId = await fetchUserId();
-  const items = await fetchItems(userId);
+  const items = await fetchItems();
   items.sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
 
   await writeOutput({
