@@ -2,29 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
-  --background: 220 20% 97%;
-  --foreground: 224 71% 4%;
-  --card: 255 100% 100%;
-  --card-foreground: 224 71% 4%;
-  --popover: 255 100% 100%;
-  --popover-foreground: 224 71% 4%;
-  --primary: 158 58% 52%;
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 162 66% 36%;
   --primary-foreground: 255 100% 100%;
-  --secondary: 220 13% 91%;
-  --secondary-foreground: 224 71% 4%;
-  --muted: 220 13% 91%;
-  --muted-foreground: 220 9% 46%;
-  --accent: 158 58% 52%;
+  --secondary: 210 28% 92%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 28% 92%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 162 66% 36%;
   --accent-foreground: 255 100% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 13% 89%;
-  --input: 220 13% 89%;
-  --ring: 224 71% 4%;
-  --radius: 0.5rem;
+  --border: 214 24% 90%;
+  --input: 214 24% 90%;
+  --ring: 222 47% 11%;
+  --radius: 0.75rem;
 }
 
 * {
@@ -32,10 +32,16 @@
 }
 
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Manrope', sans-serif;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   min-height: 100vh;
+}
+
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+  }
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -63,6 +69,13 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
 /* Print styles */

@@ -1,0 +1,6 @@
+{
+  "alias": "recomputeitnordic",
+  "fetchedAt": "2026-02-09T16:32:38.814Z",
+  "items": [],
+  "error": "Tradera API error 500: <?xml version=\"1.0\" encoding=\"utf-8\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"><soap:Body><soap:Fault><faultcode>soap:Client</faultcode><faultstring>Server did not recognize the value of HTTP Header SOAPAction: http://api.tradera.com/PublicService/GetUserByAlias.</faultstring><detail /></soap:Fault></soap:Body></soap:Envelope>"
+}
