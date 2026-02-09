@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const endpoint = 'https://api.tradera.com/v3/publicservice.asmx';
+const endpoint = 'https://api.tradera.com/v3/searchservice.asmx';
 const appId = process.env.TRADERA_APP_ID;
 const appKey = process.env.TRADERA_APP_KEY;
 const alias = process.env.TRADERA_ALIAS || 'recomputeitnordic';
@@ -26,15 +26,17 @@ const extractTag = (input, tag) => {
 
 const extractItems = (xml) => {
   const items = [];
-  const itemRegex = /<Item>([\s\S]*?)<\/Item>/g;
+  const itemRegex = /<(Item|Items)>([\s\S]*?)<\/\1>/g;
   let match;
   while ((match = itemRegex.exec(xml)) !== null) {
-    const block = match[1];
+    const block = match[2];
     const id = extractTag(block, 'Id');
     const title = extractTag(block, 'ShortDescription') || extractTag(block, 'Title');
-    const itemLink = extractTag(block, 'ItemLink');
+    const itemLink = extractTag(block, 'ItemUrl') || extractTag(block, 'ItemLink');
     const thumbnail = extractTag(block, 'ThumbnailLink') || extractTag(block, 'Thumbnail');
-    const image = extractTag(block, 'ImageLink') || thumbnail;
+    const imageFromLinksMatch = block.match(/<ImageLinks>[\s\S]*?<Url>([\s\S]*?)<\/Url>/);
+    const imageFromLinks = imageFromLinksMatch ? decodeXml(imageFromLinksMatch[1].trim()) : '';
+    const image = extractTag(block, 'ImageLink') || imageFromLinks || thumbnail;
     const endDate = extractTag(block, 'EndDate');
     const buyNow = extractTag(block, 'BuyItNowPrice');
     const nextBid = extractTag(block, 'NextBid') || extractTag(block, 'MaxBid');
@@ -55,6 +57,11 @@ const extractItems = (xml) => {
     });
   }
   return items;
+};
+
+const extractError = (xml) => {
+  const match = xml.match(/<Errors>[\s\S]*?<Message>([\s\S]*?)<\/Message>/);
+  return match ? decodeXml(match[1].trim()) : '';
 };
 
 const soapEnvelope = (body) => `<?xml version="1.0" encoding="utf-8"?>
@@ -93,23 +100,36 @@ const callSoap = async (action, body) => {
   return response.text();
 };
 
+const buildSearchRequest = (itemType) => `<SearchAdvanced xmlns="http://api.tradera.com">
+       <request>
+         <SearchWords></SearchWords>
+         <SearchInDescription>false</SearchInDescription>
+         <Alias>${alias}</Alias>
+         <CategoryId>0</CategoryId>
+         <ItemStatus>Active</ItemStatus>
+         <ItemType>${itemType}</ItemType>
+         <ItemsPerPage>200</ItemsPerPage>
+         <PageNumber>1</PageNumber>
+         <OrderBy>EndDateAscending</OrderBy>
+       </request>
+     </SearchAdvanced>`;
+
 const fetchItems = async () => {
-  const queryXml = `<Query>
-  <Alias>${alias}</Alias>
-  <ItemStatus>Active</ItemStatus>
-  <ItemType>All</ItemType>
-  <ItemsPerPage>200</ItemsPerPage>
-  <PageNumber>1</PageNumber>
-</Query>`;
+  const trySearch = async (itemType) => {
+    const xml = await callSoap('SearchAdvanced', buildSearchRequest(itemType));
+    const apiError = extractError(xml);
+    if (apiError) {
+      throw new Error(`Tradera SearchAdvanced error (${itemType}): ${apiError}`);
+    }
+    return extractItems(xml);
+  };
 
-  const xml = await callSoap(
-    'GetSearchResultAdvancedXml',
-    `<GetSearchResultAdvancedXml xmlns="http://api.tradera.com">
-       <queryXml><![CDATA[${queryXml}]]></queryXml>
-     </GetSearchResultAdvancedXml>`
-  );
+  const shopItems = await trySearch('ShopItem');
+  if (shopItems.length > 0) {
+    return shopItems;
+  }
 
-  return extractItems(xml);
+  return trySearch('All');
 };
 
 const writeOutput = async (payload) => {
