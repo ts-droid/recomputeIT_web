@@ -81,7 +81,7 @@ const callSoap = async (action, body) => {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml; charset=utf-8',
-      SOAPAction: `http://api.tradera.com/PublicService/${action}`,
+      SOAPAction: `http://api.tradera.com/${action}`,
     },
     body: soapEnvelope(body),
   });
@@ -112,10 +112,10 @@ const fetchItems = async (userId) => {
     'GetSellerItems',
     `<GetSellerItems xmlns="http://api.tradera.com">
        <sellerId>${userId}</sellerId>
-       <itemStatus>Active</itemStatus>
        <categoryId>0</categoryId>
-       <page>1</page>
-       <itemsPerPage>200</itemsPerPage>
+       <filterType>1</filterType>
+       <minEndDate>0001-01-01T00:00:00</minEndDate>
+       <maxEndDate>9999-12-31T23:59:59</maxEndDate>
      </GetSellerItems>`
   );
   return extractItems(xml);
