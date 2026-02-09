@@ -52,6 +52,8 @@ const imageAssets = {
   solderingMacro: '/images/marketing/soldering',
   motherboard: '/images/marketing/motherboard',
 };
+const traderaSymbolUrl =
+  'https://mnd-assets-bunny.mynewsdesk.com/image/upload/fl_attachment/rdhhugchdeizi8r742hi';
 
 const products = [
   'Spelkonsoler',
@@ -109,6 +111,12 @@ const TraderaCard = ({ item }) => {
       className="group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
     >
       <div className="relative h-44 w-full bg-slate-100">
+        <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f7c600]">
+            <img src={traderaSymbolUrl} alt="Tradera" className="h-3.5 w-3.5" />
+          </span>
+          Tradera
+        </div>
         {item.image || item.thumbnail ? (
           <img
             src={item.image || item.thumbnail}
@@ -499,16 +507,35 @@ export default function MarketingHomePage() {
               description="Vi visar allt vi har ute just nu. Klicka på en annons för att se detaljer och köpa."
             />
             <p className="text-sm text-slate-600">
-              Alla köp sker via{' '}
+              <span className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#f7c600]">
+                  <img src={traderaSymbolUrl} alt="Tradera" className="h-3.5 w-3.5" />
+                </span>
+                Köp via Tradera
+              </span>
+              <span className="ml-3">
+                Alla köp sker via{' '}
+                <a
+                  href="https://www.tradera.com/profile/items/4863360/recomputeitnordic"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-emerald-600 hover:text-emerald-700"
+                >
+                  Tradera
+                </a>
+                .
+              </span>
+            </p>
+            <p className="text-xs text-slate-400">
+              Tradera‑symbolen används med tillstånd för mediabruk.{' '}
               <a
-                href="https://www.tradera.com/profile/items/4863360/recomputeitnordic"
+                href="https://www.mynewsdesk.com/se/tradera/images/tradera-symbol-vit-2879639"
                 target="_blank"
                 rel="noreferrer"
-                className="font-semibold text-emerald-600 hover:text-emerald-700"
+                className="underline hover:text-slate-500"
               >
-                Tradera
+                Källa
               </a>
-              .
             </p>
             <div className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto] md:items-center">
               <input
