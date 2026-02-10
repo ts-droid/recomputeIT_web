@@ -52,8 +52,7 @@ const imageAssets = {
   solderingMacro: '/images/marketing/soldering',
   motherboard: '/images/marketing/motherboard',
 };
-const traderaSymbolUrl =
-  'https://mnd-assets-bunny.mynewsdesk.com/image/upload/fl_attachment/rdhhugchdeizi8r742hi';
+const traderaSymbolUrl = '/images/marketing/tradera-symbol-black.png';
 
 const products = [
   'Spelkonsoler',
