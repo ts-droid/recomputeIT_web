@@ -54,8 +54,6 @@ const imageAssets = {
 };
 const traderaSymbolUrl = '/images/marketing/tradera-symbol-black.png';
 const facebookPageUrl = 'https://www.facebook.com/recomputeitnordic';
-const whatsappNumber = '+46165416700';
-const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
 
 const products = [
   'Spelkonsoler',
@@ -400,20 +398,6 @@ export default function MarketingHomePage() {
       </div>
 
       <main className="bg-slate-50 text-slate-900">
-        <a
-          href={whatsappLink}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Chatta på WhatsApp"
-          className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-3 rounded-full bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:translate-y-[-2px] hover:shadow-xl"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5 fill-white">
-              <path d="M12.04 2C6.54 2 2.06 6.48 2.06 11.98c0 1.93.56 3.73 1.52 5.26L2 22l4.91-1.54a9.94 9.94 0 0 0 5.13 1.41h.01c5.5 0 9.98-4.48 9.98-9.98S17.54 2 12.04 2zm5.82 14.36c-.24.68-1.41 1.29-1.94 1.37-.5.08-1.14.11-1.84-.12-.42-.13-.97-.31-1.68-.62-2.96-1.29-4.89-4.29-5.03-4.48-.14-.18-1.2-1.6-1.2-3.05 0-1.45.76-2.16 1.03-2.46.27-.3.59-.38.79-.38.2 0 .4 0 .57.01.18.01.42-.07.66.5.24.58.82 2.01.89 2.16.07.15.12.32.02.5-.1.19-.15.32-.3.49-.15.17-.32.38-.46.51-.15.15-.31.32-.13.63.18.31.81 1.34 1.74 2.16 1.2 1.07 2.22 1.4 2.53 1.56.31.16.49.14.67-.09.19-.23.77-.9.98-1.2.21-.3.41-.25.69-.15.28.1 1.78.84 2.08.99.3.15.5.23.57.36.07.13.07.75-.17 1.43z" />
-            </svg>
-          </span>
-          Chatta på WhatsApp
-        </a>
         <section id="services" className="py-16 md:py-24">
           <div className="container space-y-10">
             <SectionTitle
