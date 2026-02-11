@@ -721,11 +721,22 @@ export default function MarketingHomePage() {
 
         <section id="contact" className="py-16 md:py-24 bg-white">
           <div className="container grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <SectionTitle
-              eyebrow="Kontakt"
-              title="Hör av dig eller kom förbi"
-              description="Vi finns i ReTuna Återbruksgalleria i Eskilstuna. Vi hjälper dig gärna på plats eller via telefon och mail."
-            />
+            <div className="space-y-6">
+              <SectionTitle
+                eyebrow="Kontakt"
+                title="Hör av dig eller kom förbi"
+                description="Vi finns i ReTuna Återbruksgalleria i Eskilstuna. Vi hjälper dig gärna på plats eller via telefon och mail."
+              />
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                <iframe
+                  title="re:Compute-IT karta"
+                  className="h-64 w-full border-0"
+                  loading="lazy"
+                  allowFullScreen
+                  src="https://www.google.com/maps?q=ReTuna%20%C3%85terbruksgalleria%2C%20Folkestaleden%205%2C%20635%2010%20Eskilstuna&output=embed"
+                />
+              </div>
+            </div>
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 space-y-5 text-sm text-slate-700">
               <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 <ResponsiveImage
@@ -733,15 +744,6 @@ export default function MarketingHomePage() {
                   alt="Butik och service"
                   className="h-36 w-full object-cover"
                   sizes="(max-width: 768px) 100vw, 35vw"
-                />
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <iframe
-                  title="re:Compute-IT karta"
-                  className="h-52 w-full border-0"
-                  loading="lazy"
-                  allowFullScreen
-                  src="https://www.google.com/maps?q=ReTuna%20%C3%85terbruksgalleria%2C%20Folkestaleden%205%2C%20635%2010%20Eskilstuna&output=embed"
                 />
               </div>
               <div className="flex items-start gap-3">
