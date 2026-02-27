@@ -57,14 +57,6 @@ const extractItems = (xml) => {
   return items;
 };
 
-const escapeXml = (value) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-
 const soapEnvelope = (body) => `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
@@ -114,7 +106,7 @@ const fetchItems = async () => {
   const xml = await callSoap(
     'GetSearchResultAdvancedXml',
     `<GetSearchResultAdvancedXml xmlns="http://api.tradera.com">
-       <queryXml>${escapeXml(queryXml)}</queryXml>
+       <queryXml>${queryXml}</queryXml>
      </GetSearchResultAdvancedXml>`
   );
 
