@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const endpoint = 'https://api.tradera.com/v3/publicservice.asmx';
+const endpoint = 'https://api.tradera.com/v3/searchservice.asmx';
 const appId = process.env.TRADERA_APP_ID;
 const appKey = process.env.TRADERA_APP_KEY;
 const alias = process.env.TRADERA_ALIAS || 'recomputeitnordic';
@@ -100,27 +100,36 @@ const callSoap = async (action, body) => {
   return response.text();
 };
 
-const buildSearchRequest = () => `<GetSearchResultAdvanced xmlns="http://api.tradera.com">
-       <query>
+const buildSearchRequest = (itemType) => `<SearchAdvanced xmlns="http://api.tradera.com">
+       <request>
          <SearchWords></SearchWords>
          <SearchInDescription>false</SearchInDescription>
          <Alias>${alias}</Alias>
          <CategoryId>0</CategoryId>
          <ItemStatus>Active</ItemStatus>
-         <ItemType>All</ItemType>
+         <ItemType>${itemType}</ItemType>
          <ItemsPerPage>200</ItemsPerPage>
          <PageNumber>1</PageNumber>
          <OrderBy>EndDateAscending</OrderBy>
-       </query>
-     </GetSearchResultAdvanced>`;
+       </request>
+     </SearchAdvanced>`;
 
 const fetchItems = async () => {
-  const xml = await callSoap('GetSearchResultAdvanced', buildSearchRequest());
-  const apiError = extractError(xml);
-  if (apiError) {
-    throw new Error(`Tradera GetSearchResultAdvanced error: ${apiError}`);
+  const trySearch = async (itemType) => {
+    const xml = await callSoap('SearchAdvanced', buildSearchRequest(itemType));
+    const apiError = extractError(xml);
+    if (apiError) {
+      throw new Error(`Tradera SearchAdvanced error (${itemType}): ${apiError}`);
+    }
+    return extractItems(xml);
+  };
+
+  const shopItems = await trySearch('ShopItem');
+  if (shopItems.length > 0) {
+    return shopItems;
   }
-  return extractItems(xml);
+
+  return trySearch('All');
 };
 
 const writeOutput = async (payload) => {
