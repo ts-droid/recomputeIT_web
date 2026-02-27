@@ -53,9 +53,6 @@ const imageAssets = {
   motherboard: '/images/marketing/motherboard',
 };
 const traderaSymbolUrl = '/images/marketing/tradera-symbol-black.png';
-const facebookPageUrl = 'https://www.facebook.com/recomputeitnordic';
-const whatsappNumber = '+46165416700';
-const whatsappLink = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`;
 
 const products = [
   'Spelkonsoler',
@@ -250,9 +247,6 @@ export default function MarketingHomePage() {
               <a className="hover:text-white transition" href="#webshop">
                 Webshop
               </a>
-              <a className="hover:text-white transition" href="#facebook">
-                Facebook
-              </a>
               <a className="hover:text-white transition" href="#process">
                 Process
               </a>
@@ -400,18 +394,6 @@ export default function MarketingHomePage() {
       </div>
 
       <main className="bg-slate-50 text-slate-900">
-        <a
-          href={whatsappLink}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Chatta på WhatsApp"
-          className="fixed bottom-6 right-6 z-50 inline-flex items-center gap-3 rounded-full bg-[#25D366] px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:translate-y-[-2px] hover:shadow-xl"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-base">
-            WA
-          </span>
-          Chatta på WhatsApp
-        </a>
         <section id="services" className="py-16 md:py-24">
           <div className="container space-y-10">
             <SectionTitle
@@ -631,29 +613,6 @@ export default function MarketingHomePage() {
           </div>
         </section>
 
-        <section id="facebook" className="py-16 md:py-24 bg-white">
-          <div className="container grid gap-10 lg:grid-cols-[1.1fr_0.9fr] items-start">
-            <SectionTitle
-              eyebrow="Facebook"
-              title="Senaste uppdateringarna"
-              description="Följ oss på Facebook för nyheter, kampanjer och aktuella uppdateringar."
-            />
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <div className="relative w-full overflow-hidden rounded-2xl bg-white">
-                <iframe
-                  title="re:Compute-IT Facebook"
-                  src={`https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
-                    facebookPageUrl
-                  )}&tabs=timeline&width=500&height=600&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true`}
-                  className="h-[600px] w-full border-0"
-                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section id="process" className="py-16 md:py-24">
           <div className="container space-y-10">
             <SectionTitle
@@ -807,9 +766,6 @@ export default function MarketingHomePage() {
             </a>
             <a href="#webshop" className="hover:text-white transition">
               Webshop
-            </a>
-            <a href="#facebook" className="hover:text-white transition">
-              Facebook
             </a>
             <a href="#about" className="hover:text-white transition">
               Om oss
