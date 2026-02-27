@@ -791,18 +791,6 @@ export default function MarketingHomePage() {
                   Boka support
                   <ArrowRight size={16} />
                 </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.Tawk_API && window.Tawk_API.maximize) {
-                      window.Tawk_API.maximize();
-                    }
-                  }}
-                  className="ml-3 inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-500 hover:text-slate-900 transition"
-                >
-                  Chatta med oss
-                  <ArrowRight size={16} />
-                </button>
               </div>
             </div>
           </div>
