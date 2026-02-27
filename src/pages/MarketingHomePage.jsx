@@ -498,18 +498,6 @@ export default function MarketingHomePage() {
               title="Våra aktuella annonser på Tradera"
               description="Vi visar allt vi har ute just nu. Klicka på en annons för att se detaljer och köpa."
             />
-            <p className="text-sm text-slate-600">
-              Alla köp sker via{' '}
-              <a
-                href="https://www.tradera.com/profile/items/4863360/recomputeitnordic"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-emerald-600 hover:text-emerald-700"
-              >
-                Tradera
-              </a>
-              .
-            </p>
             <div className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto] md:items-center">
               <input
                 type="text"
